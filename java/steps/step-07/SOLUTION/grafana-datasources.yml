@@ -1,0 +1,40 @@
+# Configuration des data sources Grafana avec corrélation
+#
+# Les points clés :
+# - Prometheus : exemplars configurés pour pointer vers Jaeger
+# - Loki : derived fields pour extraire le traceID et lier vers Jaeger
+# - Jaeger : data source de traces
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      # ✅ Configuration des Exemplars → lien vers Jaeger
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger
+          urlDisplayLabel: "Voir la trace"
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    uid: jaeger
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      # ✅ Derived fields pour créer des liens vers Jaeger depuis les logs
+      derivedFields:
+        - name: TraceId
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: ''
+          datasourceUid: jaeger
+          urlDisplayLabel: "Voir la trace"

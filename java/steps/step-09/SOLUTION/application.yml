@@ -1,0 +1,60 @@
+# Configuration application.yml avec sampling
+#
+# Exemples de configuration du sampling pour le Spring Boot Starter OpenTelemetry.
+# Décommentez la section souhaitée.
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: shoptrack-api
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shoptrack
+    username: shoptrack
+    password: shoptrack
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+# --- Configuration du sampling ---
+# Décommentez UNE des sections ci-dessous selon la stratégie souhaitée.
+
+# Option 1 : TraceIdRatio à 50%
+otel:
+  traces:
+    sampler: traceidratio
+    sampler-arg: "0.5"
+
+# Option 2 : TraceIdRatio à 10%
+# otel:
+#   traces:
+#     sampler: traceidratio
+#     sampler-arg: "0.1"
+
+# Option 3 : AlwaysOff (aucune trace)
+# otel:
+#   traces:
+#     sampler: always_off
+
+# Option 4 : AlwaysOn (toutes les traces — valeur par défaut)
+# otel:
+#   traces:
+#     sampler: always_on
+
+# Option 5 : Via variables d'environnement (recommandé pour la production)
+# otel:
+#   traces:
+#     sampler: ${OTEL_TRACES_SAMPLER:always_on}
+#     sampler-arg: ${OTEL_TRACES_SAMPLER_ARG:1.0}

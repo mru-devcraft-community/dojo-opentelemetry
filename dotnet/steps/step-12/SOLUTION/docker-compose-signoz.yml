@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  signoz-clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    container_name: signoz-clickhouse
+    restart: unless-stopped
+    volumes:
+      - signoz-clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  signoz-otel-collector:
+    image: signoz/signoz-otel-collector:0.102.12
+    container_name: signoz-otel-collector
+    restart: unless-stopped
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    environment:
+      - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+    volumes:
+      - signoz-collector-data:/var/lib/signoz
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+
+  signoz-query-service:
+    image: signoz/query-service:0.102.12
+    container_name: signoz-query-service
+    restart: unless-stopped
+    environment:
+      - ClickHouseUrl=tcp://signoz-clickhouse:9000
+      - STORAGE=clickhouse
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+
+  signoz-frontend:
+    image: signoz/frontend:0.102.12
+    container_name: signoz-frontend
+    restart: unless-stopped
+    ports:
+      - "3301:3301"
+    depends_on:
+      - signoz-query-service
+
+volumes:
+  signoz-clickhouse-data:
+  signoz-collector-data:

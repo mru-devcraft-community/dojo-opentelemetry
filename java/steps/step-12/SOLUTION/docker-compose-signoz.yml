@@ -1,0 +1,106 @@
+# Docker Compose pour SigNoz (version simplifiée)
+#
+# SigNoz est un backend d'observabilité all-in-one natif OpenTelemetry.
+# Il remplace Jaeger + Prometheus + Loki + Grafana par une seule plateforme.
+#
+# Usage :
+#   docker compose -f docker-compose-signoz.yml up -d
+#
+# Accès :
+#   SigNoz UI : http://localhost:3301
+#
+# Note : Arrêtez la stack de base (docker compose down) pour éviter les conflits de ports.
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1-alpine
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    volumes:
+      - signoz-clickhouse:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: signoz
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  signoz-otel-collector:
+    image: signoz/signoz-otel-collector:0.102.12
+    ports:
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_DATABASE=signoz
+      - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+    volumes:
+      - signoz-collector-data:/var/lib/signoz
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  query-service:
+    image: signoz/query-service:0.52.0
+    ports:
+      - "8080:8080"
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_DATABASE=signoz
+      - SIGNOZ_LOCAL_DB_PATH=/var/lib/signoz/signoz.db
+      - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
+    volumes:
+      - signoz-query-data:/var/lib/signoz
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  frontend:
+    image: signoz/frontend:0.52.0
+    ports:
+      - "3301:3301"
+    environment:
+      - FRONTEND_API_ENDPOINT=http://query-service:8080
+    depends_on:
+      - query-service
+
+  alertmanager:
+    image: signoz/alertmanager:0.23.7
+    volumes:
+      - signoz-alertmanager:/data
+
+  # PostgreSQL pour SigNoz (utilisé par postgres pour les données internes)
+  postgres-signoz:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: signoz
+      POSTGRES_PASSWORD: signoz
+      POSTGRES_DB: signoz
+    volumes:
+      - signoz-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signoz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  signoz-clickhouse:
+  signoz-collector-data:
+  signoz-query-data:
+  signoz-alertmanager:
+  signoz-postgres:
