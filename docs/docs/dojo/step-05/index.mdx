@@ -1,0 +1,294 @@
+---
+sidebar_position: 6
+title: "Step 05 - Métriques custom"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={5} title="Métriques Custom" description="Créer des métriques métier : compteurs, histogrammes et jauges" />
+
+<SignalBadge signal="metrics" title="Métriques — Le deuxième pilier">
+Les métriques vous donnent une vue **quantitative** de votre système. Contrairement aux traces qui suivent des requêtes individuelles, les métriques agrègent les données pour montrer les tendances, les taux et les distributions.
+</SignalBadge>
+
+## Types de métriques
+
+Avant de coder, comprenons les trois types fondamentaux :
+
+| Type | Utilité | Exemple | PromQL |
+|---|---|---|---|
+| **Counter** | Compte les occurrences (ne fait que monter) | Nombre de commandes créées | `rate(orders_created_total[5m])` |
+| **Histogram** | Distribution de valeurs | Montant des commandes | `histogram_quantile(0.95, ...)` |
+| **Gauge** | Valeur instantanée (monte et descend) | Commandes en cours de traitement | `orders_in_progress` |
+
+:::info Counter vs Gauge
+Un **Counter** ne fait que monter (ou se réinitialiser à 0). Utilisez-le pour compter des événements. Un **Gauge** peut monter et descendre — utilisez-le pour des valeurs comme le nombre de connexions actives ou la taille d'une file d'attente.
+:::
+
+## 1. Créer les instruments de métriques
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+En .NET, les métriques sont créées via un `Meter` (équivalent du `MeterProvider`). Centralisez la déclaration dans une classe dédiée :
+
+```csharp
+// Diagnostics.cs
+using System.Diagnostics.Metrics;
+
+public static class Diagnostics
+{
+    public static readonly Meter Meter = new("ShopTrack.Api", "1.0.0");
+
+    // Counters
+    public static readonly Counter<long> OrdersCreated =
+        Meter.CreateCounter<long>("orders.created", "orders",
+            "Nombre total de commandes créées avec succès");
+
+    public static readonly Counter<long> OrdersFailed =
+        Meter.CreateCounter<long>("orders.failed", "orders",
+            "Nombre total de commandes échouées");
+
+    // Histogram
+    public static readonly Histogram<double> OrderTotalAmount =
+        Meter.CreateHistogram<double>("orders.total_amount", "EUR",
+            "Distribution du montant total des commandes");
+}
+```
+
+Enregistrez le `Meter` dans `Program.cs` :
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddMeter(Diagnostics.Meter.Name)  // 👈 Enregistrer notre Meter
+            .AddOtlpExporter();
+    });
+```
+
+:::tip Pourquoi AddMeter() ?
+Sans `AddMeter("ShopTrack.Api")`, le SDK OpenTelemetry ignore les instruments de votre `Meter` custom. C'est le filtre qui indique quels Meters écouter.
+:::
+
+</TabItem>
+<TabItem value="java">
+
+En Java, créez un `Meter` à partir de l'instance `OpenTelemetry` globale. Centralisez dans une classe dédiée :
+
+```java
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.Meter;
+
+@Component
+public class ShopTrackMetrics {
+
+    private final LongCounter ordersCreated;
+    private final LongCounter ordersFailed;
+    private final DoubleHistogram orderTotalAmount;
+
+    public ShopTrackMetrics(OpenTelemetry openTelemetry) {
+        Meter meter = openTelemetry.getMeter("shoptrack-api");
+
+        this.ordersCreated = meter.counterBuilder("orders.created")
+            .setDescription("Nombre total de commandes créées avec succès")
+            .setUnit("orders")
+            .build();
+
+        this.ordersFailed = meter.counterBuilder("orders.failed")
+            .setDescription("Nombre total de commandes échouées")
+            .setUnit("orders")
+            .build();
+
+        this.orderTotalAmount = meter.histogramBuilder("orders.total_amount")
+            .setDescription("Distribution du montant total des commandes")
+            .setUnit("EUR")
+            .build();
+    }
+
+    // Getters
+    public LongCounter getOrdersCreated() { return ordersCreated; }
+    public LongCounter getOrdersFailed() { return ordersFailed; }
+    public DoubleHistogram getOrderTotalAmount() { return orderTotalAmount; }
+}
+```
+
+:::tip Agent Java
+Avec l'agent Java OpenTelemetry, le `Meter` est automatiquement connecté au pipeline d'export. Pas besoin de configuration supplémentaire pour l'export.
+:::
+
+</TabItem>
+</Tabs>
+
+## 2. Enregistrer des valeurs
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+```csharp
+app.MapPost("/api/orders", async (CreateOrderRequest request) =>
+{
+    try
+    {
+        var order = await CreateOrder(request);
+        var total = request.Items.Sum(i => i.Price * i.Quantity);
+
+        // Incrémenter le compteur de commandes réussies
+        Diagnostics.OrdersCreated.Add(1);
+
+        // Enregistrer le montant dans l'histogramme
+        Diagnostics.OrderTotalAmount.Record(total);
+
+        return Results.Created($"/api/orders/{order.Id}", order);
+    }
+    catch (Exception)
+    {
+        // Incrémenter le compteur d'échecs
+        Diagnostics.OrdersFailed.Add(1);
+        throw;
+    }
+});
+```
+
+</TabItem>
+<TabItem value="java">
+
+```java
+@PostMapping("/api/orders")
+public ResponseEntity<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+    try {
+        Order order = orderService.create(request);
+        double total = calculateTotal(request.getItems());
+
+        // Incrémenter le compteur de commandes réussies
+        metrics.getOrdersCreated().add(1);
+
+        // Enregistrer le montant dans l'histogramme
+        metrics.getOrderTotalAmount().record(total);
+
+        return ResponseEntity.created(URI.create("/api/orders/" + order.getId()))
+            .body(OrderResponse.from(order));
+    } catch (Exception ex) {
+        // Incrémenter le compteur d'échecs
+        metrics.getOrdersFailed().add(1);
+        throw ex;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 3. Générer du trafic
+
+Envoyez plusieurs requêtes pour alimenter les métriques :
+
+<TerminalOutput title="Générer du trafic">
+<pre>{`# Envoyer 10 commandes réussies
+for i in $(seq 1 10); do
+  curl -s -X POST http://localhost:5062/api/orders \\
+    -H "Content-Type: application/json" \\
+    -d "{
+      \\"customerName\\": \\"Client $i\\",
+      \\"items\\": [{
+        \\"productId\\": 1,
+        \\"name\\": \\"Produit\\",
+        \\"quantity\\": $i,
+        \\"price\\": 10.00
+      }]
+    }"
+  echo ""
+done
+
+# Envoyer une commande en échec
+curl -s -X POST http://localhost:5062/api/orders \\
+  -H "Content-Type: application/json" \\
+  -d '{"customerName": "Fail", "items": [{"productId": 99, "name": "X", "quantity": 9999, "price": 1}]}'`}</pre>
+</TerminalOutput>
+
+## 4. Explorer dans Prometheus
+
+Ouvrez Prometheus (`http://localhost:9090`) et testez ces requêtes PromQL :
+
+### Compteurs
+
+```promql
+# Nombre total de commandes créées
+orders_created_total
+
+# Taux de commandes par seconde (moyenne sur 5 minutes)
+rate(orders_created_total[5m])
+
+# Ratio d'échecs
+rate(orders_failed_total[5m]) / rate(orders_created_total[5m])
+```
+
+### Histogrammes
+
+```promql
+# Buckets de l'histogramme (distribution brute)
+orders_total_amount_bucket
+
+# Percentile 95 du montant des commandes
+histogram_quantile(0.95, rate(orders_total_amount_bucket[5m]))
+
+# Percentile 50 (médiane)
+histogram_quantile(0.50, rate(orders_total_amount_bucket[5m]))
+
+# Montant moyen des commandes
+rate(orders_total_amount_sum[5m]) / rate(orders_total_amount_count[5m])
+```
+
+:::warning Noms dans Prometheus
+OpenTelemetry utilise des `.` comme séparateurs (ex: `orders.created`), mais Prometheus les convertit en `_`. L'instrument `orders.created` devient `orders_created_total` (le suffixe `_total` est ajouté pour les counters).
+:::
+
+## 💡 Indices
+
+<details>
+<summary>Les métriques n'apparaissent pas dans Prometheus ?</summary>
+
+1. Vérifiez que le `Meter` est enregistré avec `AddMeter()` (.NET) ou que l'agent Java est actif.
+2. Vérifiez la configuration du Collector : le pipeline `metrics` doit exporter vers Prometheus.
+3. Attendez 15-30 secondes — les métriques sont exportées par intervalle (pas en temps réel).
+
+</details>
+
+<details>
+<summary>Comment choisir entre Counter et Histogram ?</summary>
+
+- **Counter** : vous voulez compter des événements → « combien de fois ? »
+- **Histogram** : vous voulez mesurer une distribution → « combien ça prend/coûte ? »
+
+Un counter pour le nombre de commandes, un histogram pour le montant des commandes.
+
+</details>
+
+<details>
+<summary>Quelle est la différence entre rate() et increase() ?</summary>
+
+- `rate(metric[5m])` : taux moyen par seconde sur 5 minutes
+- `increase(metric[5m])` : augmentation totale sur 5 minutes
+
+`rate()` est préférable pour les graphiques, `increase()` pour les valeurs absolues.
+
+</details>
+
+## ✅ Validation
+
+<ValidationChecklist items={[
+  "Métrique orders_created_total visible dans Prometheus",
+  "Métrique orders_total_amount_bucket visible (histogramme)",
+  "rate(orders_created_total[5m]) retourne des valeurs après trafic",
+  "histogram_quantile(0.95, ...) fonctionne"
+]} />

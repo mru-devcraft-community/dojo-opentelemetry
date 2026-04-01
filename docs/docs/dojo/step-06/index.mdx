@@ -1,0 +1,290 @@
+---
+sidebar_position: 7
+title: "Step 06 - Logs structurés"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={6} title="Logs Structurés" description="Émettre des logs structurés automatiquement corrélés avec les traces" />
+
+<SignalBadge signal="logs" title="Logs — Le troisième pilier">
+Les logs structurés vous permettent de retrouver le **contexte complet** d'une requête. Grâce à la corrélation automatique avec les traces, un clic suffit pour passer d'un log à la trace complète dans Grafana.
+</SignalBadge>
+
+## Logs structurés vs printf
+
+Avant de coder, comprenons pourquoi les logs structurés sont essentiels :
+
+| Approche | Exemple | Filtrable ? | Corrélé aux traces ? |
+|---|---|---|---|
+| **printf** | `"Order created for Alice, 3 items"` | ❌ Recherche texte uniquement | ❌ Non |
+| **Structuré** | `{"CustomerName": "Alice", "ItemsCount": 3}` | ✅ Par champ | ✅ Via TraceId |
+
+:::info Pourquoi structuré ?
+Un log structuré est un objet JSON avec des champs nommés. Loki, Elasticsearch et d'autres backends peuvent indexer ces champs, permettant des requêtes précises comme `CustomerName="Alice" AND ItemsCount > 5`.
+:::
+
+## Niveaux de log
+
+| Niveau | Usage | Exemple |
+|---|---|---|
+| `Debug` | Développement uniquement | Détails d'algorithme |
+| `Information` | Événements métier normaux | Commande créée |
+| `Warning` | Situation anormale mais non bloquante | Stock bas |
+| `Error` | Erreur qui empêche l'opération | Échec validation stock |
+| `Critical` | Erreur système grave | Base de données inaccessible |
+
+## 1. Émettre des logs structurés
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+En .NET, `ILogger<T>` est nativement structuré. Les placeholders entre `{}` deviennent des champs dans le log :
+
+```csharp
+public class OrderEndpoints
+{
+    public static void Map(WebApplication app)
+    {
+        app.MapPost("/api/orders", async (
+            CreateOrderRequest request,
+            ILogger<OrderEndpoints> logger) =>
+        {
+            // ✅ Log structuré — CustomerName et ItemsCount sont des champs
+            logger.LogInformation(
+                "Order created for {CustomerName} with {ItemsCount} items",
+                request.CustomerName,
+                request.Items.Count);
+
+            try
+            {
+                var order = await CreateOrder(request);
+
+                logger.LogInformation(
+                    "Order {OrderId} persisted with total {TotalAmount:C}",
+                    order.Id,
+                    order.TotalAmount);
+
+                return Results.Created($"/api/orders/{order.Id}", order);
+            }
+            catch (InsufficientStockException ex)
+            {
+                // ⚠️ Log d'erreur avec contexte
+                logger.LogError(ex,
+                    "Stock validation failed for {CustomerName}, item {ItemId}",
+                    request.CustomerName,
+                    ex.ItemId);
+                throw;
+            }
+        });
+    }
+}
+```
+
+:::warning Piège classique
+Ne faites **jamais** d'interpolation de string dans les logs :
+
+```csharp
+// ❌ MAUVAIS — pas structuré, le template change à chaque appel
+logger.LogInformation($"Order created for {request.CustomerName}");
+
+// ✅ BON — structuré, le template est constant
+logger.LogInformation("Order created for {CustomerName}", request.CustomerName);
+```
+:::
+
+### Configuration OpenTelemetry pour les logs
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithLogging(logging =>
+    {
+        logging.AddOtlpExporter();
+    });
+```
+
+La corrélation `TraceId` / `SpanId` est **automatique** en .NET : si un `Activity` est actif au moment du log, le SDK OpenTelemetry injecte les identifiants.
+
+</TabItem>
+<TabItem value="java">
+
+En Java, utilisez **SLF4J** avec les placeholders `{}` :
+
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@RestController
+@RequestMapping("/api/orders")
+public class OrderController {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderController.class);
+
+    @PostMapping
+    public ResponseEntity<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+        // ✅ Log structuré — customerName et itemsCount sont des champs
+        log.info("Order created for {} with {} items",
+            request.getCustomerName(),
+            request.getItems().size());
+
+        try {
+            Order order = orderService.create(request);
+
+            log.info("Order {} persisted with total {}",
+                order.getId(),
+                order.getTotalAmount());
+
+            return ResponseEntity.created(URI.create("/api/orders/" + order.getId()))
+                .body(OrderResponse.from(order));
+        } catch (InsufficientStockException ex) {
+            // ⚠️ Log d'erreur avec contexte
+            log.error("Stock validation failed for {}, item {}",
+                request.getCustomerName(),
+                ex.getItemId(),
+                ex);  // L'exception en dernier argument → stack trace
+            throw ex;
+        }
+    }
+}
+```
+
+:::warning Piège classique
+Ne faites **jamais** de concaténation dans les logs :
+
+```java
+// ❌ MAUVAIS — concaténation coûteuse même si le niveau est désactivé
+log.info("Order created for " + request.getCustomerName());
+
+// ✅ BON — évaluation paresseuse, structuré
+log.info("Order created for {}", request.getCustomerName());
+```
+:::
+
+### Corrélation TraceId
+
+Avec l'agent Java OpenTelemetry, la corrélation est **automatique**. L'agent injecte `trace_id` et `span_id` dans le **MDC** (Mapped Diagnostic Context). Vérifiez votre pattern de log dans `application.yml` :
+
+```yaml
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - trace_id=%X{trace_id} span_id=%X{span_id} - %msg%n"
+```
+
+</TabItem>
+</Tabs>
+
+## 2. Vérifier la corrélation dans Grafana
+
+Ouvrez Grafana (`http://localhost:3000`) et accédez à **Explore** → **Loki**.
+
+### Requêtes LogQL de base
+
+```logql
+# Tous les logs du service
+{service_name="shoptrack-api"}
+
+# Logs contenant "Order"
+{service_name="shoptrack-api"} |= "Order"
+
+# Logs au format JSON avec extraction de champs
+{service_name="shoptrack-api"} | json
+
+# Filtrer par niveau d'erreur
+{service_name="shoptrack-api"} | json | level="error"
+
+# Filtrer par client
+{service_name="shoptrack-api"} | json | CustomerName="Alice Dupont"
+```
+
+### Tester la corrélation
+
+<TerminalOutput title="Envoyer une commande test">
+<pre>{`curl -X POST http://localhost:5062/api/orders \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "customerName": "Alice Dupont",
+    "items": [
+      {"productId": 1, "name": "Clavier", "quantity": 1, "price": 49.99}
+    ]
+  }'`}</pre>
+</TerminalOutput>
+
+Dans Grafana Loki :
+
+1. Exécutez `{service_name="shoptrack-api"} | json`
+2. Repérez le log `"Order created for Alice Dupont with 1 items"`
+3. Dépliez le log — vous verrez un champ `TraceID`
+4. Cliquez sur le lien **Jaeger** à côté du TraceID → vous arrivez directement sur la trace complète
+
+:::tip Lien Traces ↔ Logs dans Grafana
+Pour que le lien fonctionne, Grafana doit avoir Jaeger configuré comme datasource avec la corrélation activée. Vérifiez dans **Configuration → Data sources → Loki → Derived fields**.
+:::
+
+## 3. Requêtes LogQL avancées
+
+```logql
+# Compter les erreurs par minute
+count_over_time({service_name="shoptrack-api"} | json | level="error" [1m])
+
+# Logs d'erreur avec stack trace
+{service_name="shoptrack-api"} | json | level="error" | line_format "{{.message}} — {{.exception}}"
+
+# Logs pour un TraceId spécifique
+{service_name="shoptrack-api"} |= "abc123def456"
+```
+
+## 💡 Indices
+
+<details>
+<summary>Les logs n'apparaissent pas dans Loki ?</summary>
+
+1. Vérifiez que le pipeline `logs` est configuré dans le Collector OpenTelemetry avec un exporter Loki.
+2. Vérifiez que Loki est démarré et accessible : `curl http://localhost:3100/ready`
+3. Attendez quelques secondes — Loki ingère par batch.
+
+</details>
+
+<details>
+<summary>Le TraceId est absent des logs ?</summary>
+
+- **.NET** : Assurez-vous que `.WithLogging()` est configuré dans le pipeline OpenTelemetry et qu'un `Activity` est actif lors de l'émission du log.
+- **Java** : Vérifiez que l'agent OpenTelemetry est actif (`-javaagent:opentelemetry-javaagent.jar`). L'agent injecte automatiquement le `trace_id` dans le MDC.
+
+</details>
+
+<details>
+<summary>Comment passer d'un log à sa trace dans Grafana ?</summary>
+
+1. Dans Loki, dépliez une ligne de log.
+2. Cherchez le champ `TraceID` ou `trace_id`.
+3. Si un lien cliquable apparaît, cliquez dessus. Sinon, copiez la valeur et collez-la dans Jaeger.
+4. Pour activer les liens automatiques, configurez un **Derived Field** dans la datasource Loki avec une regex sur le TraceId et un lien vers Jaeger.
+
+</details>
+
+<details>
+<summary>Quelle différence entre ILogger et Console.WriteLine ?</summary>
+
+`ILogger` (.NET) / SLF4J (Java) fournissent :
+- **Niveaux** de log (filtrage)
+- **Champs structurés** (requêtes précises)
+- **Corrélation** avec les traces
+- **Multiples destinations** (console, fichier, OTLP)
+
+`Console.WriteLine` / `System.out.println` n'offrent rien de tout cela.
+
+</details>
+
+## ✅ Validation
+
+<ValidationChecklist items={[
+  "Logs visibles dans Grafana Loki",
+  "Logs contiennent le TraceId",
+  "Logs structurés avec champs extraits (CustomerName, ItemsCount)",
+  "Filtrage par niveau (Warning, Error) fonctionne"
+]} />

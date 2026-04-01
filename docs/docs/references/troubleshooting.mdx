@@ -1,0 +1,202 @@
+---
+title: Dépannage
+sidebar_position: 3
+---
+
+# Dépannage
+
+Solutions aux problèmes courants rencontrés lors du DoJo.
+
+---
+
+## Le Collector ne reçoit pas de données
+
+**Symptômes** : Aucune trace, métrique ou log n'apparaît dans les backends.
+
+**Vérifications** :
+
+1. **Le Collector est-il démarré ?**
+   ```bash
+   docker compose ps otel-collector
+   ```
+
+2. **Les ports sont-ils accessibles ?**
+   ```bash
+   curl -v http://localhost:4318/v1/traces
+   ```
+
+3. **Vérifiez les logs du Collector** :
+   ```bash
+   docker compose logs otel-collector
+   ```
+
+4. **L'application envoie-t-elle au bon endpoint ?**
+   - gRPC : `http://localhost:4317`
+   - HTTP : `http://localhost:4318`
+
+:::tip Exporter debug
+Ajoutez un exporter `debug` dans la configuration du Collector pour voir les données reçues :
+```yaml
+exporters:
+  debug:
+    verbosity: detailed
+```
+:::
+
+---
+
+## Traces manquantes dans Jaeger
+
+**Symptômes** : L'application fonctionne mais aucune trace n'apparaît dans Jaeger.
+
+**Vérifications** :
+
+1. **Le service apparaît-il dans la liste des services Jaeger ?**
+   - Ouvrez [http://localhost:16686](http://localhost:16686)
+   - Vérifiez le menu déroulant des services
+
+2. **Le `Resource` est-il configuré ?**
+   Assurez-vous que `service.name` est défini dans votre application.
+
+3. **Le pipeline traces est-il configuré dans le Collector ?**
+   ```yaml
+   service:
+     pipelines:
+       traces:
+         receivers: [otlp]
+         exporters: [otlp/jaeger]
+   ```
+
+4. **Jaeger accepte-t-il les données OTLP ?**
+   ```bash
+   docker compose logs jaeger | grep -i "otlp"
+   ```
+
+---
+
+## Métriques absentes dans Prometheus
+
+**Symptômes** : Les métriques n'apparaissent pas dans Prometheus.
+
+**Vérifications** :
+
+1. **Le target est-il UP dans Prometheus ?**
+   - Ouvrez [http://localhost:9090/targets](http://localhost:9090/targets)
+   - Vérifiez que le Collector est listé et en état `UP`
+
+2. **La configuration de scraping est-elle correcte ?**
+   Vérifiez `infra/prometheus.yml` :
+   ```yaml
+   scrape_configs:
+     - job_name: 'otel-collector'
+       static_configs:
+         - targets: ['otel-collector:8889']
+   ```
+
+3. **Les métriques sont-elles exportées par le Collector ?**
+   ```bash
+   curl http://localhost:8889/metrics
+   ```
+
+:::info Noms de métriques
+Les noms de métriques sont transformés lors de l'export vers Prometheus. Les `.` deviennent des `_` et le suffixe `_total` est ajouté aux compteurs.
+:::
+
+---
+
+## Logs non corrélés
+
+**Symptômes** : Les logs apparaissent dans Loki mais sans `traceID`.
+
+**Vérifications** :
+
+1. **Le contexte de trace est-il actif au moment du log ?**
+   Les logs ne sont corrélés que s'ils sont émis **dans le contexte d'un span actif**.
+
+2. **Le bridge de logging est-il configuré ?**
+
+   Pour **.NET** : vérifiez que `AddOpenTelemetry()` est configuré sur le `LoggerProvider`.
+
+   Pour **Java** : vérifiez que le bridge `opentelemetry-logback-appender` ou `opentelemetry-log4j-appender` est présent.
+
+3. **Les champs traceID/spanID sont-ils présents dans Loki ?**
+   Dans Grafana Explore (Loki) :
+   ```
+   {service_name="ShopTrack"} | json
+   ```
+   Vérifiez la présence des champs `traceID` et `spanID`.
+
+---
+
+## Problèmes Docker / Podman
+
+### Les conteneurs ne démarrent pas
+
+```bash
+# Vérifier les logs
+docker compose logs
+
+# Redémarrer proprement
+docker compose down
+docker compose up -d
+```
+
+### Port déjà utilisé
+
+```bash
+# Identifier le processus occupant le port (Linux/macOS)
+lsof -i :PORT
+
+# Windows
+netstat -ano | findstr :PORT
+taskkill /PID <PID> /F
+```
+
+### Espace disque insuffisant
+
+```bash
+# Nettoyer les ressources Docker inutilisées
+docker system prune -f
+docker volume prune -f
+```
+
+:::caution Podman
+Avec Podman, utilisez `podman compose` au lieu de `docker compose`. Certaines options peuvent différer légèrement.
+:::
+
+---
+
+## L'application ne démarre pas
+
+### .NET
+
+```bash
+# Vérifier la version du SDK
+dotnet --version
+
+# Nettoyer et rebuilder
+dotnet clean
+dotnet restore
+dotnet build
+```
+
+### Java
+
+```bash
+# Vérifier Java et Maven
+java --version
+mvn --version
+
+# Nettoyer et rebuilder
+mvn clean install
+```
+
+---
+
+## Obtenir de l'aide
+
+Si le problème persiste :
+
+1. Vérifiez les logs de **tous** les composants
+2. Consultez le [glossaire](./glossary) pour clarifier les termes
+3. Consultez les [ressources externes](./resources) pour la documentation officielle

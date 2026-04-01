@@ -1,0 +1,122 @@
+---
+title: Backends d'Observabilité
+sidebar_position: 4
+---
+
+# Backends d'Observabilité
+
+Cette page explique comment utiliser chaque backend inclus dans l'infrastructure du DoJo.
+
+---
+
+## Jaeger — Traces
+
+**URL** : [http://localhost:16686](http://localhost:16686)
+
+Jaeger est l'interface principale pour explorer les traces distribuées.
+
+### Rechercher des traces
+
+1. Ouvrez l'interface Jaeger
+2. Sélectionnez le **service** dans le menu déroulant
+3. Optionnellement, filtrez par opération, durée, ou tags
+4. Cliquez sur **Find Traces**
+
+### Analyser une trace
+
+- **Timeline** — Vue chronologique des spans avec leur durée
+- **Span Details** — Cliquez sur un span pour voir ses attributs, événements et logs
+- **DAG** — Vue graphique des dépendances entre services
+
+:::tip Recherche par TraceId
+Si vous avez un `TraceId` (depuis un log par exemple), collez-le directement dans la barre de recherche en haut à droite.
+:::
+
+---
+
+## Prometheus — Métriques
+
+**URL** : [http://localhost:9090](http://localhost:9090)
+
+Prometheus stocke les métriques sous forme de séries temporelles et offre un langage de requête puissant : **PromQL**.
+
+### Requêtes utiles
+
+| Requête | Description |
+|---------|-------------|
+| `http_server_request_duration_seconds_count` | Nombre total de requêtes |
+| `rate(http_server_request_duration_seconds_count[5m])` | Taux de requêtes par seconde (sur 5 min) |
+| `histogram_quantile(0.95, rate(http_server_request_duration_seconds_bucket[5m]))` | P95 de latence |
+| `up` | État des cibles de scraping |
+
+### Vérifier les cibles
+
+Allez dans **Status → Targets** pour vérifier que Prometheus scrape bien le Collector OTel.
+
+:::info Conventions de nommage
+OpenTelemetry utilise des conventions de nommage spécifiques. Par exemple, les durées HTTP utilisent `http.server.request.duration` dans OTel, qui est converti en `http_server_request_duration_seconds` dans Prometheus.
+:::
+
+---
+
+## Grafana — Dashboards
+
+**URL** : [http://localhost:3000](http://localhost:3000)
+
+**Identifiants** : `admin` / `admin`
+
+Grafana est la plateforme de visualisation unifiée. Les datasources sont pré-configurées au démarrage.
+
+### Datasources disponibles
+
+| Datasource | Type | Usage |
+|------------|------|-------|
+| **Jaeger** | Traces | Explorer les traces distribuées |
+| **Prometheus** | Métriques | Créer des graphiques et alertes |
+| **Loki** | Logs | Rechercher et filtrer les logs |
+
+### Explorer les données
+
+1. Cliquez sur **Explore** dans le menu latéral
+2. Sélectionnez la datasource (Jaeger, Prometheus, ou Loki)
+3. Construisez votre requête
+
+### Corrélation entre signaux
+
+Grafana permet de naviguer entre les signaux :
+- Depuis une **trace** Jaeger → voir les **logs** associés dans Loki
+- Depuis un **log** Loki → ouvrir la **trace** correspondante dans Jaeger
+- Depuis une **métrique** Prometheus → trouver les **traces** liées via les exemplars
+
+:::tip Exemplars
+Les exemplars sont des liens entre métriques et traces. Quand disponibles, ils apparaissent comme des points sur les graphiques Prometheus dans Grafana.
+:::
+
+---
+
+## Loki — Logs
+
+**URL** : Accessible via Grafana (Explore → datasource Loki)
+
+Loki stocke les logs de manière efficace en indexant uniquement les **labels** (et non le contenu complet).
+
+### Syntaxe LogQL
+
+| Requête | Description |
+|---------|-------------|
+| `{service_name="ShopTrack"}` | Tous les logs du service ShopTrack |
+| `{service_name="ShopTrack"} \|= "error"` | Logs contenant "error" |
+| `{service_name="ShopTrack"} \| json \| level="error"` | Logs structurés de niveau error |
+| `{service_name="ShopTrack"} \| json \| traceID="abc123"` | Logs d'une trace spécifique |
+
+### Corrélation avec les traces
+
+Grâce au champ `traceID` dans les logs structurés, vous pouvez naviguer directement d'un log vers sa trace dans Jaeger :
+
+1. Dans Grafana Explore, sélectionnez **Loki**
+2. Recherchez vos logs
+3. Cliquez sur le lien **Jaeger** à côté du `traceID`
+
+:::info Derived Fields
+Les datasources Loki dans Grafana sont configurées avec des **Derived Fields** qui créent automatiquement des liens vers Jaeger à partir des `traceID`.
+:::

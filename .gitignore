@@ -56,3 +56,9 @@ infra/grafana-data/
 !.vscode/extensions.json
 
 .thinking/
+
+# Docusaurus
+docs/node_modules/
+docs/build/
+docs/build2/
+docs/.docusaurus/

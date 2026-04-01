@@ -1,0 +1,30 @@
+# Build results
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstats
+
+# NuGet
+*.nupkg
+*.snupkg
+project.lock.json
+
+# Visual Studio
+.vs/
+*.DotSettings.user
+launchSettings.json.user
+
+# Aspire
+.aspire/
+
+# OS
+.DS_Store
+Thumbs.db

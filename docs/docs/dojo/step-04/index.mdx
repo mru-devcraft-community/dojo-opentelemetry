@@ -1,0 +1,263 @@
+---
+sidebar_position: 5
+title: "Step 04 - Premières métriques"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={4} title="Attributs, Events & Status" description="Enrichir les spans avec des attributs métier, des events et des statuts d'erreur" />
+
+<SignalBadge signal="traces" title="Traces — Enrichissement des Spans">
+Dans cette étape, vous allez apprendre à enrichir vos spans avec des **attributs métier**, des **events** ponctuels et des **statuts d'erreur**. Ces informations transforment vos traces en véritables outils de diagnostic.
+</SignalBadge>
+
+## Pourquoi enrichir les spans ?
+
+Une span vide vous indique simplement qu'une opération a eu lieu. En ajoutant des attributs, des events et des statuts, vous obtenez :
+
+| Enrichissement | Utilité | Exemple |
+|---|---|---|
+| **Attributs** | Données métier associées à l'opération | `order.customer_name`, `order.items_count` |
+| **Events** | Points dans le temps au sein d'une span | `OrderValidated`, `StockChecked` |
+| **Status** | Résultat de l'opération (OK, Error) | Erreur de validation de stock |
+
+:::info Conventions OpenTelemetry
+Les attributs suivent les [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/). Utilisez le format `namespace.attribut` en snake_case pour vos attributs métier.
+:::
+
+## 1. Ajouter des attributs métier
+
+Les attributs sont des paires clé-valeur attachées à une span. Ils permettent de filtrer et rechercher dans Jaeger.
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+En .NET, les spans sont représentées par des `Activity`. On utilise `SetTag()` pour ajouter des attributs :
+
+```csharp
+// Dans votre endpoint de création de commande
+app.MapPost("/api/orders", async (CreateOrderRequest request) =>
+{
+    using var activity = ActivitySources.Main.StartActivity("CreateOrder");
+
+    // Attributs métier sur la span
+    activity?.SetTag("order.customer_name", request.CustomerName);
+    activity?.SetTag("order.items_count", request.Items.Count);
+    activity?.SetTag("order.total_amount", request.Items.Sum(i => i.Price * i.Quantity));
+
+    // ... logique métier
+});
+```
+
+:::tip Types supportés
+`SetTag()` accepte `string`, `int`, `long`, `double`, `bool` et leurs tableaux. Évitez les objets complexes.
+:::
+
+</TabItem>
+<TabItem value="java">
+
+En Java, on utilise `Span.current()` ou un span injecté, puis `setAttribute()` :
+
+```java
+@PostMapping("/api/orders")
+public ResponseEntity<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+    Span span = Span.current();
+
+    // Attributs métier sur la span
+    span.setAttribute("order.customer_name", request.getCustomerName());
+    span.setAttribute("order.items_count", request.getItems().size());
+    span.setAttribute("order.total_amount", calculateTotal(request.getItems()));
+
+    // ... logique métier
+}
+```
+
+:::tip Types supportés
+`setAttribute()` accepte `String`, `long`, `double`, `boolean` et leurs tableaux via `AttributeKey<T>`. Évitez les objets complexes.
+:::
+
+</TabItem>
+</Tabs>
+
+## 2. Ajouter des events
+
+Un event est un point dans le temps au sein d'une span. Il représente un moment précis — comme une validation réussie ou une étape franchie.
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+```csharp
+// Event simple
+activity?.AddEvent(new ActivityEvent("OrderValidated"));
+
+// Event avec des attributs
+activity?.AddEvent(new ActivityEvent("OrderPersisted", tags: new ActivityTagsCollection
+{
+    { "order.id", order.Id.ToString() },
+    { "order.status", "Created" }
+}));
+```
+
+:::warning Attention
+Les events ne remplacent pas les spans enfants. Utilisez un event pour un instant ponctuel, une span enfant pour une opération avec une durée.
+:::
+
+</TabItem>
+<TabItem value="java">
+
+```java
+// Event simple
+span.addEvent("OrderValidated");
+
+// Event avec des attributs
+span.addEvent("OrderPersisted", Attributes.of(
+    AttributeKey.stringKey("order.id"), order.getId().toString(),
+    AttributeKey.stringKey("order.status"), "Created"
+));
+```
+
+:::warning Attention
+Les events ne remplacent pas les spans enfants. Utilisez un event pour un instant ponctuel, une span enfant pour une opération avec une durée.
+:::
+
+</TabItem>
+</Tabs>
+
+## 3. Gérer les statuts d'erreur
+
+Quand une opération échoue, marquez la span avec un statut `Error`. Jaeger colorera ces spans en rouge, facilitant le diagnostic.
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+```csharp
+try
+{
+    await ValidateStock(order);
+    activity?.AddEvent(new ActivityEvent("StockValidated"));
+}
+catch (InsufficientStockException ex)
+{
+    // Marquer la span en erreur
+    activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+
+    // Ajouter un event d'échec avec détails
+    activity?.AddEvent(new ActivityEvent("StockValidationFailed", tags: new ActivityTagsCollection
+    {
+        { "error.type", ex.GetType().Name },
+        { "error.message", ex.Message },
+        { "order.item_id", ex.ItemId.ToString() }
+    }));
+
+    throw;
+}
+```
+
+:::danger Ne pas oublier
+Appelez toujours `SetStatus(ActivityStatusCode.Error, ...)` **avant** de relancer l'exception. Sinon la span peut se fermer sans le statut d'erreur.
+:::
+
+</TabItem>
+<TabItem value="java">
+
+```java
+try {
+    validateStock(order);
+    span.addEvent("StockValidated");
+} catch (InsufficientStockException ex) {
+    // Marquer la span en erreur
+    span.setStatus(StatusCode.ERROR, ex.getMessage());
+
+    // Ajouter un event d'échec avec détails
+    span.addEvent("StockValidationFailed", Attributes.of(
+        AttributeKey.stringKey("error.type"), ex.getClass().getSimpleName(),
+        AttributeKey.stringKey("error.message"), ex.getMessage(),
+        AttributeKey.stringKey("order.item_id"), ex.getItemId().toString()
+    ));
+
+    throw ex;
+}
+```
+
+:::danger Ne pas oublier
+Appelez toujours `setStatus(StatusCode.ERROR, ...)` **avant** de relancer l'exception. Sinon la span peut se fermer sans le statut d'erreur.
+:::
+
+</TabItem>
+</Tabs>
+
+## 4. Vérifier dans Jaeger
+
+Après avoir instrumenté votre code, envoyez quelques requêtes et ouvrez Jaeger (`http://localhost:16686`).
+
+### Commande réussie
+
+<TerminalOutput title="Test — Commande réussie">
+<pre>{`curl -X POST http://localhost:5062/api/orders \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "customerName": "Alice Dupont",
+    "items": [
+      {"productId": 1, "name": "Clavier", "quantity": 1, "price": 49.99},
+      {"productId": 2, "name": "Souris", "quantity": 2, "price": 19.99}
+    ]
+  }'`}</pre>
+</TerminalOutput>
+
+Dans Jaeger, vous devriez voir :
+- **Panneau Attributs** : `order.customer_name = Alice Dupont`, `order.items_count = 2`, `order.total_amount = 89.97`
+- **Panneau Events** : `OrderValidated`, `OrderPersisted` avec `order.id`
+
+### Commande échouée (stock insuffisant)
+
+<TerminalOutput title="Test — Stock insuffisant">
+<pre>{`curl -X POST http://localhost:5062/api/orders \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "customerName": "Bob Martin",
+    "items": [
+      {"productId": 99, "name": "Article rare", "quantity": 9999, "price": 1.00}
+    ]
+  }'`}</pre>
+</TerminalOutput>
+
+Dans Jaeger, la span devrait apparaître en **rouge** avec :
+- **Status** : `Error` — `Insufficient stock for item 99`
+- **Event** : `StockValidationFailed` avec les attributs `error.type`, `error.message`
+
+## 💡 Indices
+
+<details>
+<summary>Où placer les SetTag / setAttribute ?</summary>
+
+Ajoutez les attributs **le plus tôt possible** dans la span, idéalement dès que vous avez les données. Les events peuvent être ajoutés à tout moment pendant la durée de vie de la span.
+
+</details>
+
+<details>
+<summary>Comment voir les events dans Jaeger ?</summary>
+
+Cliquez sur une span dans le timeline de Jaeger. Dans le panneau de détail, vous trouverez un onglet **Logs** (c'est le nom historique pour les events dans Jaeger). Chaque event y apparaît avec son timestamp et ses attributs.
+
+</details>
+
+<details>
+<summary>Les attributs n'apparaissent pas ?</summary>
+
+Vérifiez que votre `Activity` n'est pas `null`. En .NET, `StartActivity()` retourne `null` si aucun listener n'est actif. Utilisez toujours l'opérateur `?.` (null-conditional).
+
+</details>
+
+## ✅ Validation
+
+<ValidationChecklist items={[
+  "Attributs order.customer_name et order.items_count visibles dans Jaeger",
+  "Event OrderValidated visible dans le span ValidateStock",
+  "Event OrderPersisted avec attribut order.id visible",
+  "Commande échouée: status Error et event StockValidationFailed"
+]} />

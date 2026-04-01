@@ -1,0 +1,84 @@
+---
+slug: /
+title: OpenTelemetry DoJo
+sidebar_position: 1
+---
+
+import SignalBadge from '@site/src/components/SignalBadge';
+import OtelFlowAnimation from '@site/src/components/OtelFlowAnimation';
+
+# 🔭 Maîtrisez l'Observabilité Applicative
+
+**Un parcours pratique pour instrumenter vos applications .NET et Java avec OpenTelemetry**
+
+---
+
+## Qu'est-ce que ce DoJo ?
+
+Ce DoJo est un parcours d'apprentissage **hands-on** conçu pour vous guider pas à pas dans l'instrumentation de vos applications avec [OpenTelemetry](https://opentelemetry.io/). Vous apprendrez à collecter, exporter et visualiser les **trois signaux d'observabilité** — traces, métriques et logs — à travers une application concrète : **ShopTrack**.
+
+:::tip Approche pratique
+Chaque étape du DoJo combine théorie et exercices concrets. Vous travaillerez sur une vraie application avec une infrastructure d'observabilité complète (Jaeger, Prometheus, Grafana, Loki).
+:::
+
+---
+
+## Les 3 Signaux
+
+L'observabilité applicative repose sur trois signaux complémentaires :
+
+<div style={{display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center', margin: '2rem 0'}}>
+
+<SignalBadge signal="traces" title="Traces">
+  Suivez le parcours d'une requête à travers vos services distribués. Les traces révèlent **où** le temps est passé et **comment** les services interagissent.
+</SignalBadge>
+
+<SignalBadge signal="metrics" title="Métriques">
+  Mesurez les performances de votre application avec des compteurs, histogrammes et jauges. Les métriques répondent à la question **« comment se porte mon système ? »**.
+</SignalBadge>
+
+<SignalBadge signal="logs" title="Logs">
+  Capturez les événements structurés et corrélés avec les traces. Les logs fournissent le **contexte détaillé** pour diagnostiquer les problèmes.
+</SignalBadge>
+
+</div>
+
+---
+
+## Flux de données OpenTelemetry
+
+Voici comment les signaux circulent de votre application jusqu'aux backends de visualisation :
+
+<OtelFlowAnimation />
+
+---
+
+## Parcours
+
+| | Détail |
+|---|---|
+| **Étapes** | 13 étapes progressives (step-00 à step-12) |
+| **Durée estimée** | ~4h de pratique |
+| **Stacks supportées** | 2 : .NET et Java |
+| **Niveau** | Intermédiaire — connaissances de base en développement requises |
+
+:::info Choix de la stack
+Chaque étape propose des instructions pour **.NET** et **Java**. Vous pouvez suivre l'une ou l'autre, ou les deux !
+:::
+
+---
+
+## Par où commencer ?
+
+<div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '1.5rem 0'}}>
+
+📦 [**Démarrage rapide →**](/getting-started)
+Installez les prérequis et lancez l'infrastructure.
+
+📚 [**Concepts →**](/concepts)
+Comprenez les fondamentaux d'OpenTelemetry avant de plonger dans le code.
+
+🥋 [**DoJo →**](/dojo/step-00)
+Commencez l'entraînement directement avec la première étape.
+
+</div>

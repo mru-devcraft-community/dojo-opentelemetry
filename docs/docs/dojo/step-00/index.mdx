@@ -1,0 +1,262 @@
+---
+sidebar_position: 1
+title: "Step 00 - Découverte du projet"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={0} title="Setup & Lancement" description="Mise en place de l'environnement de développement et de la stack d'observabilité" />
+
+## Objectif
+
+Dans cette étape, vous allez préparer votre environnement de travail et lancer l'ensemble de la stack
+d'observabilité. À la fin de cette étape, vous disposerez d'une application fonctionnelle connectée à
+des backends d'observabilité (Jaeger, Grafana, Prometheus, Loki).
+
+<SignalBadge signal="traces" title="Ce que nous allons observer">
+  Une fois la stack lancée, nous pourrons observer les **traces distribuées** générées automatiquement
+  par l'application. Ces traces nous permettront de suivre le parcours complet d'une requête HTTP
+  à travers les différents composants du système.
+</SignalBadge>
+
+## Prérequis communs
+
+Avant de commencer, assurez-vous d'avoir installé :
+
+- **Docker Desktop** (ou Docker Engine + Compose) — version 24+
+- **Git** pour cloner le repository
+- Un terminal (bash, PowerShell, ou zsh)
+
+:::info Ports utilisés par la stack
+La stack d'observabilité utilise les ports suivants. Assurez-vous qu'ils sont disponibles :
+- `16686` — Jaeger UI
+- `3000` — Grafana
+- `9090` — Prometheus
+- `3100` — Loki
+- `4317` — OTel Collector (gRPC)
+- `4318` — OTel Collector (HTTP)
+:::
+
+## Étape 1 — Cloner le repository
+
+<TerminalOutput title="Clone du repository">
+```bash
+git clone https://github.com/votre-org/opentelemetry-observability-applicative.git
+cd opentelemetry-observability-applicative
+```
+</TerminalOutput>
+
+## Étape 2 — Lancer la stack d'observabilité
+
+<TerminalOutput title="Lancement Docker Compose">
+```bash
+cd infra
+docker compose up -d
+```
+</TerminalOutput>
+
+Vérifiez que tous les services sont opérationnels :
+
+<TerminalOutput title="Vérification des services">
+```bash
+docker compose ps
+```
+</TerminalOutput>
+
+:::tip Vérification rapide
+Tous les services doivent afficher l'état **Up**. Si un service redémarre en boucle, consultez ses logs
+avec `docker compose logs <service>`.
+:::
+
+## Étape 3 — Lancer l'application
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+### Prérequis .NET
+
+- **.NET 10 SDK** — [Télécharger](https://dotnet.microsoft.com/download)
+- **.NET Aspire workload**
+
+Vérifiez votre installation :
+
+<TerminalOutput title="Vérification .NET">
+```bash
+dotnet --version
+# Attendu : 10.x.x
+dotnet workload list
+# Attendu : aspire dans la liste
+```
+</TerminalOutput>
+
+### Lancer l'application avec Aspire
+
+```bash
+cd dotnet/src
+dotnet run --project ShopTrack.AppHost
+```
+
+Aspire orchestre automatiquement tous les services et fournit un **Dashboard** intégré.
+
+### Accéder au Dashboard Aspire
+
+Ouvrez votre navigateur sur [https://localhost:18888](https://localhost:18888)
+
+:::warning Certificat HTTPS
+Le Dashboard Aspire utilise un certificat auto-signé. Acceptez l'avertissement de sécurité
+du navigateur pour y accéder.
+:::
+
+### Tester les endpoints
+
+<TerminalOutput title="Test des endpoints">
+```bash
+# Liste des produits
+curl -k https://localhost:7275/api/products
+
+# Liste des commandes
+curl -k https://localhost:7275/api/orders
+
+# Créer une commande
+curl -k -X POST https://localhost:7275/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"productId": 1, "quantity": 2}'
+```
+</TerminalOutput>
+
+</TabItem>
+<TabItem value="java">
+
+### Prérequis Java
+
+- **Java 21** (JDK) — [Télécharger Adoptium](https://adoptium.net/)
+- **Maven 3.9+**
+
+Vérifiez votre installation :
+
+<TerminalOutput title="Vérification Java">
+```bash
+java --version
+# Attendu : openjdk 21.x.x
+mvn --version
+# Attendu : Apache Maven 3.9.x
+```
+</TerminalOutput>
+
+### Lancer l'application Spring Boot
+
+```bash
+cd java/src
+mvn spring-boot:run
+```
+
+L'application démarre sur le port **8080** par défaut.
+
+### Tester les endpoints
+
+<TerminalOutput title="Test des endpoints">
+```bash
+# Liste des produits
+curl http://localhost:8080/api/products
+
+# Liste des commandes
+curl http://localhost:8080/api/orders
+
+# Créer une commande
+curl -X POST http://localhost:8080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"productId": 1, "quantity": 2}'
+```
+</TerminalOutput>
+
+:::tip Rechargement automatique
+Pour le développement, vous pouvez utiliser `mvn spring-boot:run` avec le profil dev qui active
+le rechargement automatique.
+:::
+
+</TabItem>
+</Tabs>
+
+## Vérifier les backends d'observabilité
+
+| Service    | URL                          | Description                     |
+|-----------|------------------------------|---------------------------------|
+| Jaeger    | http://localhost:16686       | Visualisation des traces        |
+| Grafana   | http://localhost:3000        | Dashboards et exploration       |
+| Prometheus| http://localhost:9090        | Métriques et alertes            |
+
+:::info Identifiants Grafana par défaut
+- **Utilisateur** : `admin`
+- **Mot de passe** : `admin`
+
+Vous serez invité à changer le mot de passe à la première connexion.
+:::
+
+## Aide & Résolution de problèmes
+
+<details>
+<summary>��� Docker ne démarre pas ou un service est en erreur</summary>
+
+Vérifiez que Docker Desktop est bien lancé, puis :
+
+```bash
+# Voir les logs d'un service spécifique
+docker compose logs otel-collector
+
+# Redémarrer toute la stack
+docker compose down
+docker compose up -d
+```
+
+Si un conteneur redémarre en boucle, vérifiez les fichiers de configuration dans le dossier `infra/`.
+</details>
+
+<details>
+<summary>��� Conflit de ports</summary>
+
+Si un port est déjà utilisé, identifiez le processus :
+
+```bash
+# Sur Linux/Mac
+lsof -i :16686
+
+# Sur Windows
+netstat -ano | findstr :16686
+```
+
+Arrêtez le processus en conflit ou modifiez le port dans `docker-compose.yml`.
+</details>
+
+<details>
+<summary>��� Problème de certificat HTTPS (.NET Aspire)</summary>
+
+Si le certificat de développement pose problème :
+
+```bash
+dotnet dev-certs https --clean
+dotnet dev-certs https --trust
+```
+</details>
+
+<details>
+<summary>��� Données de test (seed data)</summary>
+
+L'application est initialisée avec des données de démonstration au démarrage.
+Si la base est vide, redémarrez l'application — les données sont recréées automatiquement
+grâce au mécanisme de seed intégré.
+</details>
+
+## Checklist de validation
+
+<ValidationChecklist items={[
+  "Stack Docker opérationnelle (6 services Up)",
+  "Jaeger accessible sur http://localhost:16686",
+  "Grafana accessible sur http://localhost:3000",
+  "Application démarrée et API fonctionnelle",
+  "Endpoints /api/products et /api/orders répondent"
+]} />

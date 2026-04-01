@@ -1,0 +1,88 @@
+---
+title: Glossaire
+sidebar_position: 2
+---
+
+# Glossaire
+
+Définitions des termes clés utilisés dans le DoJo OpenTelemetry.
+
+---
+
+### Attribut (Attribute)
+Paire clé-valeur attachée à un span, une métrique ou un log pour fournir du contexte supplémentaire. Exemple : `http.method = "GET"`.
+
+### Baggage
+Données contextuelles propagées entre services au sein d'une trace. Contrairement au SpanContext, le baggage est modifiable et destiné à transporter des informations métier.
+
+### Collector
+Composant intermédiaire qui reçoit, traite et exporte les données de télémétrie. Il découple les applications des backends d'observabilité.
+
+### Context Propagation
+Mécanisme de transmission du contexte de trace entre services, typiquement via des headers HTTP (`traceparent`, `tracestate`). Permet de relier les spans d'une même trace distribuée.
+
+### Counter
+Instrument de métriques qui ne peut qu'augmenter. Utilisé pour compter des événements (requêtes, erreurs, etc.).
+
+### Exporter
+Composant du SDK ou du Collector qui envoie les données de télémétrie vers un backend (Jaeger, Prometheus, Loki, etc.).
+
+### Gauge
+Instrument de métriques représentant une valeur ponctuelle qui peut augmenter ou diminuer. Exemple : utilisation mémoire, température.
+
+### Histogram
+Instrument de métriques qui enregistre la distribution de valeurs. Utilisé pour mesurer des durées ou des tailles et calculer des percentiles.
+
+### Instrumentation
+Processus d'ajout de code de télémétrie à une application. Peut être **automatique** (via des bibliothèques) ou **manuelle** (via l'API OTel).
+
+### Log (LogRecord)
+Enregistrement horodaté d'un événement avec un niveau de sévérité, un corps et des attributs. Dans OpenTelemetry, les logs sont corrélés aux traces via le `TraceId`.
+
+### Meter
+Composant du SDK qui crée des instruments de métriques (Counter, Histogram, Gauge, etc.).
+
+### MeterProvider
+Point d'entrée du SDK pour la création de Meters. Configure les MetricReaders et les exporters de métriques.
+
+### Metric
+Mesure numérique agrégée dans le temps. OpenTelemetry supporte plusieurs types d'instruments : Counter, Histogram, Gauge, etc.
+
+### OTLP (OpenTelemetry Protocol)
+Protocole natif d'OpenTelemetry pour la transmission des données de télémétrie. Disponible en gRPC et HTTP/protobuf.
+
+### Pipeline
+Dans le Collector, assemblage d'un receiver, de processors et d'un exporter pour traiter un type de signal spécifique.
+
+### Processor
+Composant du Collector qui transforme, filtre ou enrichit les données entre la réception et l'export. Exemples : `batch`, `memory_limiter`, `filter`.
+
+### Receiver
+Composant du Collector qui accepte les données de télémétrie entrantes. Exemple : receiver OTLP sur les ports 4317 (gRPC) et 4318 (HTTP).
+
+### Resource
+Ensemble d'attributs décrivant l'entité qui produit la télémétrie. Exemples : `service.name`, `service.version`, `host.name`.
+
+### Sampler
+Composant du SDK qui décide quels spans sont enregistrés. Permet de contrôler le volume de traces collectées.
+
+### SDK
+Implémentation concrète de l'API OpenTelemetry pour un langage donné. Le SDK gère la collecte, le traitement et l'export des données.
+
+### Span
+Unité de travail dans une trace. Un span a un nom, des timestamps de début et fin, des attributs, des événements et un statut.
+
+### SpanContext
+Contexte propagé entre services, contenant le `TraceId`, le `SpanId` et les `TraceFlags`. Porté par le header `traceparent` en W3C Trace Context.
+
+### Trace
+Ensemble de spans liés partageant un même `TraceId`. Représente le parcours complet d'une requête à travers un système distribué.
+
+### TraceId
+Identifiant unique de 128 bits qui relie tous les spans d'une même trace distribuée.
+
+### TracerProvider
+Point d'entrée du SDK pour la création de Tracers. Configure les SpanProcessors, les exporters et les samplers.
+
+### W3C Trace Context
+Standard du W3C pour la propagation du contexte de trace via les headers HTTP `traceparent` et `tracestate`.

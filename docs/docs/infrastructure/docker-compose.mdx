@@ -1,0 +1,144 @@
+---
+title: Docker Compose
+sidebar_position: 2
+---
+
+# Docker Compose
+
+L'ensemble de l'infrastructure d'observabilité est définie dans le fichier `infra/docker-compose.yml`. Cette page décrit chaque service et comment les gérer.
+
+## Services
+
+### PostgreSQL — Données applicatives
+
+Base de données relationnelle utilisée par l'application ShopTrack pour stocker les données métier (produits, commandes, etc.).
+
+```yaml
+postgres:
+  image: postgres:16
+  ports:
+    - "5432:5432"
+```
+
+### OTel Collector — Réception et routage des signaux
+
+Point d'entrée centralisé pour toute la télémétrie. Il reçoit les données via OTLP et les route vers les backends appropriés.
+
+```yaml
+otel-collector:
+  image: otel/opentelemetry-collector-contrib
+  ports:
+    - "4317:4317"  # gRPC
+    - "4318:4318"  # HTTP
+```
+
+### Jaeger — Traces
+
+Backend de stockage et interface de visualisation pour les traces distribuées.
+
+```yaml
+jaeger:
+  image: jaegertracing/all-in-one
+  ports:
+    - "16686:16686"  # UI
+    - "4317"         # OTLP gRPC (interne)
+```
+
+### Prometheus — Métriques
+
+Système de monitoring qui collecte et stocke les métriques sous forme de séries temporelles.
+
+```yaml
+prometheus:
+  image: prom/prometheus
+  ports:
+    - "9090:9090"
+```
+
+### Grafana — Visualisation
+
+Plateforme de visualisation avec des datasources pré-configurées pour Jaeger, Prometheus et Loki.
+
+```yaml
+grafana:
+  image: grafana/grafana
+  ports:
+    - "3000:3000"
+```
+
+### Loki — Logs
+
+Système d'agrégation de logs inspiré par Prometheus, optimisé pour le stockage et le requêtage.
+
+```yaml
+loki:
+  image: grafana/loki
+  ports:
+    - "3100:3100"
+```
+
+---
+
+## Démarrer l'infrastructure
+
+```bash
+cd infra
+
+# Avec Docker
+docker compose up -d
+
+# Avec Podman
+podman compose up -d
+```
+
+:::tip Vérifiez le statut
+```bash
+docker compose ps
+```
+:::
+
+## Arrêter l'infrastructure
+
+```bash
+# Arrêter sans supprimer les données
+docker compose stop
+
+# Arrêter et supprimer les conteneurs et volumes
+docker compose down -v
+```
+
+---
+
+## Table des ports
+
+| Port | Service | Protocole | Description |
+|------|---------|-----------|-------------|
+| 5432 | PostgreSQL | TCP | Base de données |
+| 4317 | OTel Collector | gRPC | Réception OTLP gRPC |
+| 4318 | OTel Collector | HTTP | Réception OTLP HTTP |
+| 16686 | Jaeger | HTTP | Interface web Jaeger |
+| 9090 | Prometheus | HTTP | Interface web Prometheus |
+| 3000 | Grafana | HTTP | Interface web Grafana |
+| 3100 | Loki | HTTP | API Loki |
+
+---
+
+## Dépannage rapide
+
+:::caution Port déjà utilisé
+Si un port est déjà occupé, identifiez le processus avec :
+```bash
+# Linux/macOS
+lsof -i :PORT
+
+# Windows
+netstat -ano | findstr :PORT
+```
+:::
+
+:::caution Conteneur qui redémarre en boucle
+Vérifiez les logs du conteneur :
+```bash
+docker compose logs <service-name>
+```
+:::

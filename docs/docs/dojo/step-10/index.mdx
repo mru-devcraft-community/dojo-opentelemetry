@@ -1,0 +1,220 @@
+---
+sidebar_position: 11
+title: "Step 10 - Sampling"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import StackTabs from '@site/src/components/StackTabs';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={10} title="Dashboards Grafana" description="Créer des tableaux de bord pour visualiser les métriques, traces et logs" />
+
+<SignalBadge signal="metrics" title="Métriques & Visualisation">
+  Ce step se concentre sur la création de dashboards Grafana pour exploiter toutes les données collectées.
+</SignalBadge>
+
+## Objectif
+
+Grafana est **agnostique du langage** — les dashboards fonctionnent de la même manière que votre backend soit en .NET ou Java. Dans cette étape, vous allez créer un dashboard complet **ShopTrack Overview** avec 5 panneaux couvrant métriques, logs et latence.
+
+:::info Prérequis
+Assurez-vous que Grafana est accessible sur `http://localhost:3000` et que Prometheus et Loki sont configurés comme data sources.
+:::
+
+## Panneaux à créer
+
+### 1. Débit des commandes
+
+Créez un panneau **Time Series** affichant le débit de commandes créées par seconde.
+
+**Requête PromQL :**
+
+```promql
+rate(orders_created_total[5m])
+```
+
+- **Type** : Time Series
+- **Titre** : Débit des commandes
+- **Unité** : ops/s
+
+### 2. Taux d'erreur
+
+Créez un panneau **Stat** ou **Gauge** affichant le ratio d'erreurs sur les commandes.
+
+**Requête PromQL :**
+
+```promql
+rate(orders_failed_total[5m]) / rate(orders_created_total[5m])
+```
+
+- **Type** : Stat ou Gauge
+- **Seuils** :
+  - `0` → 🟢 Vert
+  - `0.1` → 🟡 Jaune
+  - `0.5` → 🔴 Rouge
+- **Unité** : percentunit (0–1)
+
+:::tip Seuils dans Grafana
+Dans l'onglet **Thresholds** du panneau, ajoutez les valeurs `0.1` et `0.5`. Grafana colorera automatiquement le fond selon le niveau.
+:::
+
+### 3. Distribution des montants P95
+
+Créez un panneau **Time Series** affichant le 95e percentile des montants de commandes.
+
+**Requête PromQL :**
+
+```promql
+histogram_quantile(0.95, rate(orders_total_amount_bucket[5m]))
+```
+
+- **Type** : Time Series
+- **Titre** : Distribution montants P95
+- **Unité** : € (ou votre devise)
+
+### 4. Derniers logs d'erreur
+
+Créez un panneau **Logs** connecté à Loki pour afficher les logs récents de niveau Warning et Error.
+
+**Requête LogQL :**
+
+```logql
+{service_name="shoptrack-api"} | json | level=~"Warning|Error"
+```
+
+- **Type** : Logs
+- **Data source** : Loki
+- **Titre** : Derniers logs erreur
+
+### 5. Latence HTTP P95
+
+Ce panneau affiche le 95e percentile de latence des requêtes HTTP. C'est ici que les noms de métriques diffèrent entre les stacks.
+
+<StackTabs
+  dotnet={
+    <div>
+
+**Requête PromQL (.NET) :**
+
+```promql
+histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le))
+```
+
+La métrique `http_server_request_duration_seconds` est émise automatiquement par l'instrumentation ASP.NET Core.
+
+    </div>
+  }
+  java={
+    <div>
+
+**Requête PromQL (Java) :**
+
+```promql
+histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le))
+```
+
+:::info Nom de métrique Java
+Selon votre version de l'instrumentation OpenTelemetry Java, la métrique peut s'appeler `http.server.request.duration` (format OpenTelemetry) ou `http_server_request_duration_seconds` (format Prometheus). Vérifiez dans Prometheus via **Status → Targets** puis **Graph**.
+:::
+
+    </div>
+  }
+/>
+
+- **Type** : Time Series
+- **Titre** : Latence HTTP P95
+- **Unité** : secondes (s)
+
+## Provisioning du dashboard
+
+Pour que votre dashboard **persiste après un redémarrage** de Grafana, il faut le provisionner.
+
+### Étape 1 : Exporter le dashboard en JSON
+
+1. Ouvrez votre dashboard dans Grafana
+2. Cliquez sur l'icône **⚙️ Settings** (engrenage) en haut
+3. Cliquez sur **JSON Model** dans le menu de gauche
+4. Copiez le JSON complet
+5. Sauvegardez-le dans `infra/grafana/provisioning/dashboards/shoptrack-overview.json`
+
+### Étape 2 : Créer le fichier de configuration du provider
+
+Créez le fichier `infra/grafana/provisioning/dashboards/dashboard-provider.yml` :
+
+```yaml
+apiVersion: 1
+providers:
+  - name: 'ShopTrack'
+    orgId: 1
+    folder: 'ShopTrack'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false
+```
+
+### Étape 3 : Monter le volume dans Docker Compose
+
+Vérifiez que votre `docker-compose.yml` monte bien le dossier de provisioning :
+
+```yaml
+grafana:
+  volumes:
+    - ./grafana/provisioning:/etc/grafana/provisioning
+```
+
+Redémarrez Grafana :
+
+```bash
+docker compose restart grafana
+```
+
+:::warning Dashboard non visible après restart ?
+Vérifiez que le fichier JSON exporté est valide (pas de virgule trailing). Consultez les logs Grafana :
+```bash
+docker compose logs grafana | grep -i "dashboard"
+```
+:::
+
+## Astuces et dépannage
+
+<details>
+<summary>🔍 Mes métriques n'apparaissent pas dans Grafana</summary>
+
+1. Vérifiez que Prometheus scrape bien vos métriques : allez sur `http://localhost:9090/targets`
+2. Testez la requête directement dans Prometheus avant de l'utiliser dans Grafana
+3. Assurez-vous que le nom de la data source dans Grafana correspond (majuscules/minuscules)
+
+</details>
+
+<details>
+<summary>🔍 Erreur de syntaxe PromQL</summary>
+
+- `rate()` nécessite un **range vector** : `[5m]`, pas un instant vector
+- `histogram_quantile` prend un float entre 0 et 1 comme premier argument
+- Utilisez l'autocomplétion dans l'éditeur de requête Grafana
+
+</details>
+
+<details>
+<summary>🔍 Le provisioning ne fonctionne pas</summary>
+
+- Le fichier `dashboard-provider.yml` doit être dans le dossier `provisioning/dashboards/`
+- Le JSON du dashboard doit avoir un `uid` unique
+- Vérifiez les permissions des fichiers montés dans le conteneur
+
+</details>
+
+## Checklist
+
+<ValidationChecklist items={[
+  "Dashboard ShopTrack Overview créé avec 5+ panneaux",
+  "Panneau débit commandes affiche des données",
+  "Panneau taux erreur fonctionne avec seuils colorés",
+  "Panneau logs Loki affiche les derniers logs",
+  "Dashboard provisionné (persiste après restart Grafana)"
+]} />

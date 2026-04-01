@@ -1,0 +1,39 @@
+---
+title: Concepts OpenTelemetry
+sidebar_position: 1
+---
+
+# Concepts OpenTelemetry
+
+OpenTelemetry (OTel) est un **framework d'observabilité open-source** et vendor-neutral, maintenu par la [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/). Il fournit un ensemble standardisé d'APIs, de SDKs et d'outils pour collecter des données de télémétrie à partir de vos applications.
+
+## Pourquoi OpenTelemetry ?
+
+Avant OpenTelemetry, chaque outil d'observabilité avait son propre SDK et son propre format de données. Cela créait un **vendor lock-in** et rendait difficile le changement de backend.
+
+OpenTelemetry résout ce problème en proposant :
+
+- 🔌 **Un standard unique** — Une seule API pour instrumenter votre code
+- 🔄 **Interopérabilité** — Compatible avec tous les backends majeurs (Jaeger, Prometheus, Datadog, etc.)
+- 🌐 **Multi-langage** — SDKs disponibles pour .NET, Java, Python, Go, JavaScript, et plus
+- 📊 **Les 3 signaux** — Traces, métriques et logs unifiés sous un même framework
+
+:::info Projet CNCF
+OpenTelemetry est le **deuxième projet le plus actif** de la CNCF (après Kubernetes). Il résulte de la fusion d'OpenTracing et OpenCensus.
+:::
+
+## Les piliers de l'observabilité
+
+L'observabilité applicative repose sur trois signaux complémentaires :
+
+| Signal | Question |  Usage |
+|--------|----------|--------|
+| **Traces** | *Que s'est-il passé ?* | Suivre le parcours d'une requête |
+| **Métriques** | *Comment se porte le système ?* | Mesurer les performances |
+| **Logs** | *Pourquoi cela s'est-il passé ?* | Diagnostiquer les problèmes |
+
+## Dans cette section
+
+- 📡 [**Signaux de télémétrie**](./signals) — Traces, métriques et logs en détail
+- 🏗️ [**Architecture**](./architecture) — Composants du SDK et du Collector
+- 🔀 [**Le Collector**](./collector) — Réception, traitement et export des données

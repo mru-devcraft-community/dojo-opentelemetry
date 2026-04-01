@@ -1,0 +1,339 @@
+---
+sidebar_position: 9
+title: "Step 08 - Dashboards Grafana"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={8} title="Propagation de Contexte" description="Comprendre comment le contexte de trace se propage entre services via les headers W3C" />
+
+<SignalBadge signal="traces" title="Propagation — Le lien entre les services">
+La propagation de contexte est le mécanisme qui permet de **relier les spans** entre différents services. Sans propagation, chaque service génère une trace indépendante — avec propagation, toutes les opérations partagent le même `TraceId` et forment une **trace distribuée**.
+</SignalBadge>
+
+## Le standard W3C Trace Context
+
+Le header `traceparent` est le standard W3C pour propager le contexte de trace entre services. Son format est :
+
+```
+00-{traceId 32 hex}-{spanId 16 hex}-{flags 2 hex}
+```
+
+| Champ | Taille | Description |
+|---|---|---|
+| **Version** | 2 hex | Toujours `00` actuellement |
+| **TraceId** | 32 hex | Identifiant unique de la trace complète |
+| **SpanId** | 16 hex | Identifiant du span parent (celui qui émet la requête) |
+| **Flags** | 2 hex | `01` = trace échantillonnée, `00` = non échantillonnée |
+
+:::info Pourquoi c'est important ?
+Sans propagation, appeler un autre service crée une **nouvelle trace** indépendante. Avec propagation, l'appelant injecte un header `traceparent` et l'appelé le lit pour **rattacher ses spans** à la même trace.
+:::
+
+## 1. Observer les headers de propagation
+
+Notre application utilise `httpbin.org` — un service qui renvoie dans sa réponse les headers qu'il a reçus. C'est parfait pour observer la propagation en action.
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+Créez un endpoint qui appelle `httpbin.org/headers` pour voir les headers envoyés automatiquement par `HttpClient` :
+
+```csharp
+// Endpoints/ChainEndpoints.cs
+public static class ChainEndpoints
+{
+    public static void MapChainEndpoints(this WebApplication app)
+    {
+        app.MapGet("/api/chain", async (IHttpClientFactory httpClientFactory) =>
+        {
+            var client = httpClientFactory.CreateClient("NotificationService");
+
+            // Cet appel propage automatiquement le traceparent
+            var response = await client.GetAsync("https://httpbin.org/headers");
+            var body = await response.Content.ReadAsStringAsync();
+
+            return Results.Ok(new
+            {
+                message = "Chain call completed",
+                httpbinHeaders = body
+            });
+        });
+    }
+}
+```
+
+:::tip AddHttpClientInstrumentation
+La propagation automatique fonctionne grâce à `AddHttpClientInstrumentation()` dans votre configuration OpenTelemetry. Sans cela, aucun header `traceparent` n'est injecté dans les requêtes sortantes.
+:::
+
+</TabItem>
+<TabItem value="java">
+
+Ajoutez une méthode dans `NotificationService` pour récupérer les headers sortants :
+
+```java
+public String getOutgoingHeaders() {
+    return restTemplate.getForObject(
+        "https://httpbin.org/headers", String.class);
+}
+```
+
+Créez un contrôleur pour exposer un endpoint de chaînage :
+
+```java
+@RestController
+@RequestMapping("/api/chain")
+public class ChainController {
+
+    private final NotificationService notificationService;
+
+    public ChainController(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
+
+    @GetMapping
+    public Map<String, Object> chain() {
+        String headers = notificationService.getOutgoingHeaders();
+        return Map.of(
+            "message", "Chain call completed",
+            "httpbinHeaders", headers
+        );
+    }
+}
+```
+
+:::tip Agent Java et RestTemplate
+Avec l'agent Java OpenTelemetry, le `RestTemplate` est automatiquement instrumenté. Le header `traceparent` est injecté dans chaque requête sortante sans configuration supplémentaire.
+:::
+
+</TabItem>
+</Tabs>
+
+Testez l'endpoint :
+
+<TerminalOutput title="Observer la propagation">
+<pre>{`curl -s http://localhost:5062/api/chain | jq
+
+# Réponse attendue (extrait) :
+# {
+#   "message": "Chain call completed",
+#   "httpbinHeaders": {
+#     "headers": {
+#       "Traceparent": "00-a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6-789abcdef0123456-01"
+#     }
+#   }
+# }`}</pre>
+</TerminalOutput>
+
+## 2. Créer l'endpoint /api/context
+
+Cet endpoint affiche les informations du contexte de trace actuel — utile pour comprendre comment le contexte est reçu et interprété.
+
+<Tabs groupId="stack" defaultValue="dotnet" values={[{label: '.NET 10 / Aspire', value: 'dotnet'}, {label: 'Java 21 / Spring Boot', value: 'java'}]}>
+<TabItem value="dotnet">
+
+```csharp
+// Endpoints/ContextEndpoints.cs
+using System.Diagnostics;
+
+public static class ContextEndpoints
+{
+    public static void MapContextEndpoints(this WebApplication app)
+    {
+        app.MapGet("/api/context", (HttpContext httpContext) =>
+        {
+            var activity = Activity.Current;
+            var traceparent = httpContext.Request.Headers["traceparent"].ToString();
+            var tracestate = httpContext.Request.Headers["tracestate"].ToString();
+
+            return Results.Ok(new
+            {
+                incoming = new
+                {
+                    traceparent = string.IsNullOrEmpty(traceparent)
+                        ? "(aucun — nouveau contexte généré)"
+                        : traceparent,
+                    tracestate = string.IsNullOrEmpty(tracestate)
+                        ? "(aucun)"
+                        : tracestate
+                },
+                current = new
+                {
+                    traceId = activity?.TraceId.ToString(),
+                    spanId = activity?.SpanId.ToString(),
+                    parentSpanId = activity?.ParentSpanId.ToString(),
+                    isRemote = activity?.HasRemoteParent
+                }
+            });
+        });
+    }
+}
+```
+
+Enregistrez les deux endpoints dans `Program.cs` :
+
+```csharp
+app.MapChainEndpoints();
+app.MapContextEndpoints();
+```
+
+</TabItem>
+<TabItem value="java">
+
+```java
+@RestController
+@RequestMapping("/api/context")
+public class ContextController {
+
+    @GetMapping
+    public Map<String, Object> getContext(
+            @RequestHeader(value = "traceparent", required = false) String traceparent,
+            @RequestHeader(value = "tracestate", required = false) String tracestate) {
+
+        var span = io.opentelemetry.api.trace.Span.current();
+        var spanContext = span.getSpanContext();
+
+        return Map.of(
+            "incoming", Map.of(
+                "traceparent", traceparent != null
+                    ? traceparent
+                    : "(aucun — nouveau contexte généré)",
+                "tracestate", tracestate != null
+                    ? tracestate
+                    : "(aucun)"
+            ),
+            "current", Map.of(
+                "traceId", spanContext.getTraceId(),
+                "spanId", spanContext.getSpanId(),
+                "isRemote", spanContext.isRemote(),
+                "isSampled", spanContext.isSampled()
+            )
+        );
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 3. Tester dans Jaeger
+
+Appelez `/api/chain` puis ouvrez Jaeger pour observer la trace :
+
+<TerminalOutput title="Appeler l'endpoint de chaînage">
+<pre>{`curl -s http://localhost:5062/api/chain | jq`}</pre>
+</TerminalOutput>
+
+Dans Jaeger (`http://localhost:16686`) :
+
+1. Sélectionnez le service `shoptrack-api`
+2. Trouvez la trace correspondant à `/api/chain`
+3. Vérifiez la structure parent-enfant :
+
+```
+GET /api/chain          ← span serveur (parent)
+  └── HTTP GET httpbin.org/headers  ← span client (enfant)
+```
+
+:::warning Même TraceId
+Les deux spans doivent partager le **même TraceId**. Le `spanId` dans le header `traceparent` reçu par httpbin correspond au span de l'appel HTTP sortant — pas au span serveur.
+:::
+
+## 4. Décoder le header traceparent
+
+Prenez le header `traceparent` retourné par httpbin et décomposez-le :
+
+```
+00-a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6-789abcdef0123456-01
+│   │                                  │                │
+│   │                                  │                └─ flags (01 = sampled)
+│   │                                  └─ spanId (16 hex) — span HTTP client
+│   └─ traceId (32 hex) — identifiant de la trace
+└─ version (toujours 00)
+```
+
+Comparez avec Jaeger :
+- Le `traceId` doit correspondre à celui affiché dans Jaeger
+- Le `spanId` correspond au span de l'appel HTTP sortant (pas le span serveur)
+
+## 5. Tester la propagation entrante
+
+Testez `/api/context` avec et sans header `traceparent` pour comprendre le comportement :
+
+<TerminalOutput title="Tester la propagation entrante">
+<pre>{`# Sans traceparent — un nouveau TraceId est généré
+curl -s http://localhost:5062/api/context | jq
+
+# Avec un traceparent personnalisé — le TraceId est respecté
+curl -s -H "traceparent: 00-12345678901234567890123456789012-1234567890123456-01" \\
+  http://localhost:5062/api/context | jq
+
+# Vérifiez que le TraceId retourné est bien :
+# 12345678901234567890123456789012`}</pre>
+</TerminalOutput>
+
+:::info Que se passe-t-il avec un traceparent entrant ?
+Quand un header `traceparent` valide est reçu, le framework OpenTelemetry **adopte le TraceId** fourni au lieu d'en générer un nouveau. Le span créé pour la requête devient un **enfant** du span indiqué par le `spanId` du header.
+:::
+
+## ��� Indices
+
+<details>
+<summary>��� .NET : Comment accéder aux informations de trace ?</summary>
+
+- `Activity.Current` contient le span actuel en .NET
+- `Activity.Current.TraceId` et `Activity.Current.SpanId` pour les identifiants
+- `HttpContext.Request.Headers["traceparent"]` pour lire le header entrant
+- `AddHttpClientInstrumentation()` est **indispensable** pour la propagation sortante
+
+</details>
+
+<details>
+<summary>��� Java : Comment accéder aux informations de trace ?</summary>
+
+- `Span.current()` retourne le span actuel
+- `Span.current().getSpanContext().getTraceId()` pour le TraceId
+- `@RequestHeader("traceparent")` pour lire le header entrant
+- Le `RestTemplate` est instrumenté automatiquement par l'agent Java
+
+</details>
+
+<details>
+<summary>��� Le traceparent n'apparaît pas dans httpbin ?</summary>
+
+1. Vérifiez que `AddHttpClientInstrumentation()` est configuré (.NET)
+2. Vérifiez que l'agent Java est bien chargé (Java)
+3. Assurez-vous d'utiliser `IHttpClientFactory` (.NET) ou un `RestTemplate` en bean Spring (Java)
+4. Vérifiez qu'il n'y a pas de proxy qui supprime les headers
+
+</details>
+
+<details>
+<summary>��� Format W3C traceparent</summary>
+
+```
+00-{traceId 32 hex}-{spanId 16 hex}-{flags 2 hex}
+```
+
+- **Version** : toujours `00`
+- **TraceId** : 32 caractères hexadécimaux — identifient la trace entière
+- **SpanId** : 16 caractères hexadécimaux — identifient le span parent
+- **Flags** : `01` = échantillonné, `00` = non échantillonné
+
+</details>
+
+## ✅ Validation
+
+<ValidationChecklist items={[
+  "/api/chain retourne un résultat avec le header traceparent de httpbin",
+  "Jaeger montre des spans parent-enfant pour /api/chain",
+  "/api/context retourne TraceId et SpanId",
+  "Un traceparent personnalisé envoyé via curl est respecté par /api/context",
+  "Le format W3C traceparent est compris : version-traceId-spanId-flags"
+]} />

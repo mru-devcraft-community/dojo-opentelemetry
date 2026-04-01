@@ -1,0 +1,56 @@
+---
+title: Infrastructure d'Observabilité
+sidebar_position: 1
+---
+
+# Infrastructure d'Observabilité
+
+Le DoJo inclut une infrastructure complète d'observabilité déployée via **Docker Compose**. Cette infrastructure collecte, stocke et visualise les données de télémétrie émises par votre application.
+
+## Architecture
+
+```mermaid
+graph TD
+    subgraph Application
+        APP[ShopTrack API]
+    end
+
+    subgraph Infrastructure Docker
+        OTEL[OTel Collector<br/>:4317 / :4318]
+        PG[PostgreSQL<br/>:5432]
+        J[Jaeger<br/>:16686]
+        PR[Prometheus<br/>:9090]
+        L[Loki<br/>:3100]
+        G[Grafana<br/>:3000]
+    end
+
+    APP -->|OTLP gRPC/HTTP| OTEL
+    APP -->|SQL| PG
+    OTEL -->|Traces| J
+    OTEL -->|Métriques| PR
+    OTEL -->|Logs| L
+    J --> G
+    PR --> G
+    L --> G
+```
+
+## Composants
+
+| Service | Rôle | Port |
+|---------|------|------|
+| **PostgreSQL** | Base de données applicative | 5432 |
+| **OTel Collector** | Point d'entrée de la télémétrie | 4317, 4318 |
+| **Jaeger** | Stockage et visualisation des traces | 16686 |
+| **Prometheus** | Stockage et requêtage des métriques | 9090 |
+| **Loki** | Stockage et requêtage des logs | 3100 |
+| **Grafana** | Tableaux de bord unifiés | 3000 |
+
+:::info Pré-configuré
+L'infrastructure est entièrement pré-configurée. Les datasources Grafana (Jaeger, Prometheus, Loki) sont provisionnées automatiquement au démarrage.
+:::
+
+## Dans cette section
+
+- 🐳 [**Docker Compose**](./docker-compose) — Détail des services et démarrage
+- ⚙️ [**Configuration du Collector**](./collector-config) — Pipelines du Collector OTel
+- 📊 [**Backends d'observabilité**](./backends) — Utilisation de Jaeger, Prometheus, Grafana et Loki

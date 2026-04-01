@@ -1,0 +1,124 @@
+---
+title: Installation
+sidebar_position: 3
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Installation
+
+Suivez ces étapes pour installer et configurer votre environnement de travail.
+
+## 1. Cloner le dépôt
+
+```bash
+git clone https://github.com/your-org/opentelemetry-observability-applicative.git
+cd opentelemetry-observability-applicative
+```
+
+## 2. Configurer la stack applicative
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET">
+
+```bash
+cd dotnet/src
+
+# Restaurer les dépendances
+dotnet restore
+
+# Vérifier que le projet compile
+dotnet build
+```
+
+:::info .NET Aspire
+Le projet utilise .NET Aspire comme orchestrateur local. Le `AppHost` démarre automatiquement l'application et ses dépendances.
+:::
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```bash
+cd java/src
+
+# Compiler le projet
+mvn clean install
+
+# Vérifier que le projet compile
+mvn verify
+```
+
+</TabItem>
+</Tabs>
+
+## 3. Lancer l'infrastructure d'observabilité
+
+L'infrastructure est définie dans le fichier `infra/docker-compose.yml`. Elle inclut tous les backends nécessaires.
+
+```bash
+cd infra
+
+# Avec Docker
+docker compose up -d
+
+# Ou avec Podman
+podman compose up -d
+```
+
+:::tip Vérifier le statut
+```bash
+docker compose ps
+```
+Tous les services doivent être à l'état `running` ou `healthy`.
+:::
+
+## 4. Vérification
+
+Une fois l'infrastructure démarrée, vérifiez l'accès aux interfaces :
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Jaeger** | [http://localhost:16686](http://localhost:16686) | Interface de visualisation des traces |
+| **Prometheus** | [http://localhost:9090](http://localhost:9090) | Interface de requêtes métriques |
+| **Grafana** | [http://localhost:3000](http://localhost:3000) | Tableaux de bord (admin/admin) |
+
+:::caution Premier démarrage
+Le premier lancement peut prendre quelques minutes pour télécharger les images Docker. Patientez jusqu'à ce que tous les conteneurs soient opérationnels.
+:::
+
+## 5. Lancer l'application
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET">
+
+```bash
+cd dotnet/src
+
+# Lancer avec Aspire
+dotnet run --project ShopTrack.AppHost
+```
+
+L'application sera accessible sur le port affiché dans la console Aspire.
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```bash
+cd java/src
+
+# Lancer avec Maven
+mvn spring-boot:run
+```
+
+L'application sera accessible sur `http://localhost:8080`.
+
+</TabItem>
+</Tabs>
+
+## Prêt ?
+
+Votre environnement est configuré ! Vous pouvez maintenant :
+
+- 📚 Réviser les [concepts OpenTelemetry](/concepts)
+- 🥋 Commencer le [DoJo](/dojo/step-00)

@@ -1,0 +1,284 @@
+:root {
+  /* OTel brand colors */
+  --ifm-color-primary: #4285F4;
+  --ifm-color-primary-dark: #2a75f3;
+  --ifm-color-primary-darker: #1e6cf2;
+  --ifm-color-primary-darkest: #0d56d6;
+  --ifm-color-primary-light: #5c95f5;
+  --ifm-color-primary-lighter: #689df6;
+  --ifm-color-primary-lightest: #8db6f8;
+  
+  /* Signal colors */
+  --otel-traces: #2196F3;
+  --otel-metrics: #4CAF50;
+  --otel-logs: #FF9800;
+  
+  --ifm-code-font-size: 95%;
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --docusaurus-highlighted-code-line-bg: rgba(66, 133, 244, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #7BAAF7;
+  --ifm-color-primary-dark: #5c95f5;
+  --ifm-color-primary-darker: #4d8bf4;
+  --ifm-color-primary-darkest: #1f6cf2;
+  --ifm-color-primary-light: #9abff9;
+  --ifm-color-primary-lighter: #a9c9fa;
+  --ifm-color-primary-lightest: #d7e6fc;
+  --docusaurus-highlighted-code-line-bg: rgba(123, 170, 247, 0.15);
+}
+
+/* Signal badges */
+.signal-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 12px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: default;
+}
+
+.signal-badge:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.signal-badge--traces {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05));
+  border: 2px solid var(--otel-traces);
+}
+
+.signal-badge--metrics {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
+  border: 2px solid var(--otel-metrics);
+}
+
+.signal-badge--logs {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.05));
+  border: 2px solid var(--otel-logs);
+}
+
+.signal-badge__icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.signal-badge__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.signal-badge__content {
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+/* Step header */
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.08), rgba(66, 133, 244, 0.02));
+  border-left: 4px solid var(--ifm-color-primary);
+}
+
+.step-header__number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  color: white;
+  font-size: 1.3rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step-header__content {
+  flex: 1;
+}
+
+.step-header__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--ifm-heading-color);
+}
+
+.step-header__description {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 0.25rem 0 0;
+}
+
+/* Validation checklist */
+.validation-checklist {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.08), rgba(76, 175, 80, 0.02));
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.validation-checklist__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--otel-metrics);
+}
+
+.validation-checklist__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.validation-checklist__item input[type="checkbox"] {
+  margin-top: 0.25rem;
+  accent-color: var(--otel-metrics);
+  width: 18px;
+  height: 18px;
+}
+
+/* Terminal output */
+.terminal-output {
+  background: #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+
+.terminal-output__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #333;
+  font-size: 0.8rem;
+  color: #ccc;
+}
+
+.terminal-output__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.terminal-output__dot--red { background: #ff5f56; }
+.terminal-output__dot--yellow { background: #ffbd2e; }
+.terminal-output__dot--green { background: #27c93f; }
+
+.terminal-output__content {
+  padding: 1rem;
+  color: #e0e0e0;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+/* OTel flow animation */
+.otel-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+.otel-flow__node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  min-width: 100px;
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.otel-flow__node:nth-child(1) { animation-delay: 0s; }
+.otel-flow__node:nth-child(2) { animation-delay: 0.2s; }
+.otel-flow__node:nth-child(3) { animation-delay: 0.4s; }
+.otel-flow__node:nth-child(4) { animation-delay: 0.6s; }
+.otel-flow__node:nth-child(5) { animation-delay: 0.8s; }
+
+.otel-flow__node--app {
+  background: linear-gradient(135deg, #4285F4, #2962FF);
+  color: white;
+}
+
+.otel-flow__node--sdk {
+  background: linear-gradient(135deg, #7C4DFF, #651FFF);
+  color: white;
+}
+
+.otel-flow__node--collector {
+  background: linear-gradient(135deg, #00BCD4, #0097A7);
+  color: white;
+}
+
+.otel-flow__node--backend {
+  background: linear-gradient(135deg, #FF7043, #F4511E);
+  color: white;
+}
+
+.otel-flow__arrow {
+  font-size: 1.5rem;
+  color: var(--ifm-color-primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Stack tabs customization */
+.tabs-container [role="tabpanel"] {
+  padding-top: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .signal-badge {
+    min-width: 100%;
+  }
+  .otel-flow {
+    flex-direction: column;
+  }
+  .otel-flow__arrow {
+    transform: rotate(90deg);
+  }
+}

@@ -1,0 +1,318 @@
+---
+sidebar_position: 10
+title: "Step 09 - Alerting"
+---
+
+import StepHeader from '@site/src/components/StepHeader';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ValidationChecklist from '@site/src/components/ValidationChecklist';
+import SignalBadge from '@site/src/components/SignalBadge';
+import TerminalOutput from '@site/src/components/TerminalOutput';
+
+<StepHeader number={9} title="Sampling" description="Contrôler le volume de traces capturées avec différentes stratégies d'échantillonnage" />
+
+<SignalBadge signal="traces" title="Traces — Maîtriser le volume">
+En production, capturer **100 % des traces** peut devenir très coûteux en stockage et en bande passante.
+L'échantillonnage (sampling) permet de contrôler le volume tout en conservant une vue représentative du comportement de votre système.
+</SignalBadge>
+
+## Pourquoi échantillonner ?
+
+| Problème | Impact | Solution |
+|---|---|---|
+| Volume excessif de traces | Coût de stockage, surcharge réseau | Ratio sampling (ex: 50 %) |
+| Traces inutiles (health checks) | Bruit dans les données | Filtrage côté sampler |
+| Perte de traces critiques | Difficile de diagnostiquer les erreurs | ParentBased sampling |
+
+:::info Head Sampling vs Tail Sampling
+Le **head sampling** décide au début de la trace si elle sera capturée. C'est simple et efficace.
+Le **tail sampling** décide à la fin — il peut garder uniquement les erreurs, mais nécessite un collecteur.
+Dans cette étape, nous utilisons le **head sampling** côté SDK.
+:::
+
+## Stratégies de sampling
+
+| Sampler | Comportement |
+|---|---|
+| `AlwaysOn` | Capture **toutes** les traces (défaut) |
+| `AlwaysOff` | Ne capture **aucune** trace |
+| `TraceIdRatioBased(0.5)` | Capture environ **50 %** des traces |
+| `ParentBased(root)` | Respecte la décision du parent, applique `root` pour les nouvelles traces |
+
+:::tip ParentBased : le sampler recommandé
+`ParentBased` est la stratégie recommandée en production. Il **respecte la décision du service appelant** :
+si le parent est sampled, l'enfant l'est aussi. Pour les traces sans parent, il applique le sampler racine
+que vous configurez (ex: `TraceIdRatioBased`).
+:::
+
+## 1. Configurer un ratio sampling à 50 %
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET 10 / Aspire">
+
+Modifiez `Program.cs` pour ajouter un sampler basé sur le ratio :
+
+```csharp
+using OpenTelemetry.Trace;
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing
+            .SetSampler(new TraceIdRatioBasedSampler(0.5))  // 👈 50 % des traces
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource("ShopTrack.Api")
+            .AddOtlpExporter();
+    });
+```
+
+<details>
+<summary>💡 Indice</summary>
+
+Les samplers se trouvent dans le namespace `OpenTelemetry.Trace`. La méthode `SetSampler()` est disponible
+sur le `TracerProviderBuilder`.
+
+</details>
+
+</TabItem>
+<TabItem value="java" label="Java 21 / Spring Boot">
+
+Configurez le sampler dans `application.yml` :
+
+```yaml
+otel:
+  traces:
+    sampler: traceidratio
+    sampler-arg: "0.5"   # 50 % des traces
+```
+
+:::info Spring Boot et ParentBased
+Le Spring Boot OpenTelemetry Starter wrappe **automatiquement** le sampler configuré dans un `ParentBased`.
+Ainsi, `traceidratio` devient en réalité `parentbased_traceidratio`. Ce comportement garantit le respect
+des décisions de sampling propagées par les services en amont.
+:::
+
+<details>
+<summary>💡 Indice</summary>
+
+La configuration se fait dans `src/main/resources/application.yml`. Les valeurs possibles pour
+`otel.traces.sampler` sont : `always_on`, `always_off`, `traceidratio`, `parentbased_traceidratio`.
+
+</details>
+
+</TabItem>
+</Tabs>
+
+## 2. Tester le ratio sampling
+
+Envoyez 20 requêtes et vérifiez le nombre de traces dans Jaeger :
+
+```bash
+# Envoyer 20 requêtes
+for i in $(seq 1 20); do
+  curl -s http://localhost:5126/api/products > /dev/null
+  echo "Requête $i envoyée"
+done
+```
+
+<details>
+<summary>💡 Indice : script bash pour envoyer N requêtes</summary>
+
+Vous pouvez adapter le script avec une variable :
+
+```bash
+N=20
+for i in $(seq 1 $N); do
+  curl -s -o /dev/null -w "Requête $i → HTTP %{http_code}\n" http://localhost:5126/api/products
+done
+```
+
+</details>
+
+Ouvrez **Jaeger** ([http://localhost:16686](http://localhost:16686)) et comptez les traces pour le service.
+Avec un ratio de 0.5, vous devriez observer **environ 10 traces** sur les 20 requêtes envoyées.
+
+:::warning Résultat probabiliste
+Le ratio 50 % est **probabiliste** : vous n'obtiendrez pas toujours exactement 10 traces. C'est normal.
+Sur un grand nombre de requêtes, le ratio converge vers 50 %.
+:::
+
+## 3. Tester AlwaysOff
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET 10 / Aspire">
+
+Remplacez le sampler par `AlwaysOffSampler` :
+
+```csharp
+tracing.SetSampler(new AlwaysOffSampler());
+```
+
+Relancez l'application et envoyez des requêtes. **Aucune trace** ne devrait apparaître dans Jaeger.
+
+</TabItem>
+<TabItem value="java" label="Java 21 / Spring Boot">
+
+Modifiez `application.yml` :
+
+```yaml
+otel:
+  traces:
+    sampler: always_off
+```
+
+Relancez l'application et envoyez des requêtes. **Aucune trace** ne devrait apparaître dans Jaeger.
+
+</TabItem>
+</Tabs>
+
+## 4. Configurer ParentBased
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET 10 / Aspire">
+
+Le sampler `ParentBased` respecte la décision du parent et utilise un sampler racine pour les nouvelles traces :
+
+```csharp
+tracing.SetSampler(
+    new ParentBasedSampler(new TraceIdRatioBasedSampler(0.5))
+);
+```
+
+Avec cette configuration :
+- Si une requête entrante a un parent **sampled** → la trace est **toujours capturée**
+- Si une requête entrante a un parent **non sampled** → la trace est **toujours ignorée**
+- Si c'est une **nouvelle trace** (pas de parent) → le ratio de 50 % s'applique
+
+</TabItem>
+<TabItem value="java" label="Java 21 / Spring Boot">
+
+Avec Spring Boot Starter, le `ParentBased` est déjà appliqué automatiquement. Pour être explicite :
+
+```yaml
+otel:
+  traces:
+    sampler: parentbased_traceidratio
+    sampler-arg: "0.5"
+```
+
+Avec cette configuration :
+- Si une requête entrante a un parent **sampled** → la trace est **toujours capturée**
+- Si une requête entrante a un parent **non sampled** → la trace est **toujours ignorée**
+- Si c'est une **nouvelle trace** (pas de parent) → le ratio de 50 % s'applique
+
+</TabItem>
+</Tabs>
+
+## 5. Configuration via variables d'environnement
+
+OpenTelemetry définit des variables d'environnement standard pour configurer le sampling **sans modifier le code** :
+
+| Variable | Description | Valeurs possibles |
+|---|---|---|
+| `OTEL_TRACES_SAMPLER` | Nom du sampler | `always_on`, `always_off`, `traceidratio`, `parentbased_traceidratio` |
+| `OTEL_TRACES_SAMPLER_ARG` | Argument du sampler | `0.1`, `0.5`, `1.0` (ratio) |
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET 10 / Aspire">
+
+Supprimez le `SetSampler()` du code et configurez via les variables d'environnement :
+
+```bash
+# Ratio 10 % avec ParentBased
+export OTEL_TRACES_SAMPLER=parentbased_traceidratio
+export OTEL_TRACES_SAMPLER_ARG=0.1
+
+dotnet run --project ShopTrack.Api
+```
+
+:::tip Configuration sans recompilation
+Les variables d'environnement sont lues par le SDK OpenTelemetry au démarrage. Cela permet de changer
+la stratégie de sampling en production sans modifier ni recompiler le code.
+:::
+
+</TabItem>
+<TabItem value="java" label="Java 21 / Spring Boot">
+
+Configurez via les variables d'environnement au lancement :
+
+```bash
+# Ratio 10 % avec ParentBased
+export OTEL_TRACES_SAMPLER=parentbased_traceidratio
+export OTEL_TRACES_SAMPLER_ARG=0.1
+
+./mvnw spring-boot:run
+```
+
+:::tip Priorité des configurations
+Les variables d'environnement `OTEL_TRACES_SAMPLER` prennent le pas sur la configuration dans
+`application.yml`. C'est idéal pour ajuster le sampling en production sans redéployer.
+:::
+
+</TabItem>
+</Tabs>
+
+## 6. Revenir à AlwaysOn
+
+:::warning Important
+Avant de passer à l'étape suivante, **revenez au sampler par défaut** (`AlwaysOn`) pour ne pas perdre
+de traces dans les prochaines étapes.
+:::
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET 10 / Aspire">
+
+Supprimez l'appel `SetSampler()` de `Program.cs` (ou remplacez par `AlwaysOnSampler`) :
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing
+            // Pas de SetSampler() → AlwaysOn par défaut
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource("ShopTrack.Api")
+            .AddOtlpExporter();
+    });
+```
+
+Et supprimez les variables d'environnement si elles ont été définies :
+
+```bash
+unset OTEL_TRACES_SAMPLER
+unset OTEL_TRACES_SAMPLER_ARG
+```
+
+</TabItem>
+<TabItem value="java" label="Java 21 / Spring Boot">
+
+Remettez la configuration par défaut dans `application.yml` :
+
+```yaml
+otel:
+  traces:
+    sampler: always_on
+```
+
+Et supprimez les variables d'environnement si elles ont été définies :
+
+```bash
+unset OTEL_TRACES_SAMPLER
+unset OTEL_TRACES_SAMPLER_ARG
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+<ValidationChecklist items={[
+  "Ratio 50% : environ 10 traces sur 20 requêtes dans Jaeger",
+  "AlwaysOff : aucune trace visible",
+  "ParentBased : trace avec parent sampled=01 toujours capturée",
+  "Configuration via variables d'environnement fonctionne",
+  "Retour à AlwaysOn : toutes les traces capturées",
+]} />

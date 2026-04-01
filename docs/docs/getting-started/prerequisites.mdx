@@ -1,0 +1,122 @@
+---
+title: Prérequis
+sidebar_position: 2
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Prérequis
+
+Avant de démarrer le DoJo, assurez-vous que votre environnement dispose des outils suivants.
+
+## Outils communs
+
+| Outil | Version minimale | Vérification |
+|-------|-----------------|--------------|
+| **Docker** ou **Podman** | Docker 24+ / Podman 4+ | `docker --version` ou `podman --version` |
+| **Docker Compose** | v2.20+ | `docker compose version` |
+| **Git** | 2.30+ | `git --version` |
+| **Un IDE** | — | VS Code, IntelliJ IDEA, ou Rider |
+
+:::info Docker Desktop vs Podman
+Les deux fonctionnent pour ce DoJo. Si vous utilisez Podman, remplacez `docker compose` par `podman compose` dans les commandes.
+:::
+
+## Outils spécifiques à la stack
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET">
+
+| Outil | Version | Vérification |
+|-------|---------|--------------|
+| **.NET SDK** | 10.0+ | `dotnet --version` |
+| **ASP.NET Core Runtime** | 10.0+ | `dotnet --list-runtimes` |
+
+### Installation du SDK .NET
+
+```bash
+# Windows (winget)
+winget install Microsoft.DotNet.SDK.10
+
+# macOS (Homebrew)
+brew install dotnet-sdk
+
+# Linux (Ubuntu/Debian)
+sudo apt-get update && sudo apt-get install -y dotnet-sdk-10.0
+```
+
+:::tip .NET Aspire
+Le projet utilise .NET Aspire pour l'orchestration locale. Le workload Aspire sera installé automatiquement lors du premier build.
+:::
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+| Outil | Version | Vérification |
+|-------|---------|--------------|
+| **JDK** | 21+ | `java --version` |
+| **Maven** | 3.9+ | `mvn --version` |
+
+### Installation de Java et Maven
+
+```bash
+# Windows (winget)
+winget install Microsoft.OpenJDK.21
+winget install Apache.Maven
+
+# macOS (Homebrew)
+brew install openjdk@21 maven
+
+# Linux (SDKMAN)
+sdk install java 21-open
+sdk install maven
+```
+
+:::tip JAVA_HOME
+Vérifiez que la variable d'environnement `JAVA_HOME` pointe vers votre installation JDK 21 :
+```bash
+echo $JAVA_HOME
+```
+:::
+
+</TabItem>
+</Tabs>
+
+## Vérification complète
+
+Exécutez les commandes suivantes pour valider votre environnement :
+
+<Tabs groupId="stack">
+<TabItem value="dotnet" label=".NET">
+
+```bash
+docker --version
+docker compose version
+git --version
+dotnet --version
+```
+
+</TabItem>
+<TabItem value="java" label="Java">
+
+```bash
+docker --version
+docker compose version
+git --version
+java --version
+mvn --version
+```
+
+</TabItem>
+</Tabs>
+
+:::caution Ports requis
+Assurez-vous que les ports suivants sont disponibles sur votre machine :
+- **5432** — PostgreSQL
+- **4317, 4318** — OTel Collector (gRPC, HTTP)
+- **16686** — Jaeger UI
+- **9090** — Prometheus
+- **3000** — Grafana
+- **3100** — Loki
+:::
