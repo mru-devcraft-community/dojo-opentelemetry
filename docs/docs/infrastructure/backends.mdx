@@ -3,15 +3,22 @@ title: Backends d'Observabilité
 sidebar_position: 4
 ---
 
+import BackendCard from '@site/src/components/BackendCard';
+import FadeInView from '@site/src/components/FadeInView';
+
 # Backends d'Observabilité
+
+<FadeInView direction="up">
 
 Cette page explique comment utiliser chaque backend inclus dans l'infrastructure du DoJo.
 
+</FadeInView>
+
 ---
 
-## Jaeger — Traces
+<BackendCard name="Jaeger" url="http://localhost:16686" type="traces" index={0}>
 
-**URL** : [http://localhost:16686](http://localhost:16686)
+## Jaeger — Traces
 
 Jaeger est l'interface principale pour explorer les traces distribuées.
 
@@ -32,11 +39,13 @@ Jaeger est l'interface principale pour explorer les traces distribuées.
 Si vous avez un `TraceId` (depuis un log par exemple), collez-le directement dans la barre de recherche en haut à droite.
 :::
 
+</BackendCard>
+
 ---
 
-## Prometheus — Métriques
+<BackendCard name="Prometheus" url="http://localhost:9090" type="metrics" index={1}>
 
-**URL** : [http://localhost:9090](http://localhost:9090)
+## Prometheus — Métriques
 
 Prometheus stocke les métriques sous forme de séries temporelles et offre un langage de requête puissant : **PromQL**.
 
@@ -57,11 +66,13 @@ Allez dans **Status → Targets** pour vérifier que Prometheus scrape bien le C
 OpenTelemetry utilise des conventions de nommage spécifiques. Par exemple, les durées HTTP utilisent `http.server.request.duration` dans OTel, qui est converti en `http_server_request_duration_seconds` dans Prometheus.
 :::
 
+</BackendCard>
+
 ---
 
-## Grafana — Dashboards
+<BackendCard name="Grafana" url="http://localhost:3000" type="dashboard" index={2}>
 
-**URL** : [http://localhost:3000](http://localhost:3000)
+## Grafana — Dashboards
 
 **Identifiants** : `admin` / `admin`
 
@@ -92,11 +103,13 @@ Grafana permet de naviguer entre les signaux :
 Les exemplars sont des liens entre métriques et traces. Quand disponibles, ils apparaissent comme des points sur les graphiques Prometheus dans Grafana.
 :::
 
+</BackendCard>
+
 ---
 
-## Loki — Logs
+<BackendCard name="Loki" url="via Grafana → Explore" type="logs" index={3}>
 
-**URL** : Accessible via Grafana (Explore → datasource Loki)
+## Loki — Logs
 
 Loki stocke les logs de manière efficace en indexant uniquement les **labels** (et non le contenu complet).
 
@@ -120,3 +133,6 @@ Grâce au champ `traceID` dans les logs structurés, vous pouvez naviguer direct
 :::info Derived Fields
 Les datasources Loki dans Grafana sont configurées avec des **Derived Fields** qui créent automatiquement des liens vers Jaeger à partir des `traceID`.
 :::
+
+</BackendCard>
+

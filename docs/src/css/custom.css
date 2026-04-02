@@ -64,8 +64,11 @@
 }
 
 .signal-badge__icon {
-  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 0.5rem;
+  /* Remove font-size — Lottie handles sizing */
 }
 
 .signal-badge__title {
@@ -93,6 +96,7 @@
 }
 
 .step-header__number {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -104,6 +108,23 @@
   font-size: 1.3rem;
   font-weight: 700;
   flex-shrink: 0;
+  z-index: 1;
+}
+
+.step-header__number::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid var(--ifm-color-primary);
+  opacity: 0;
+  animation: ring-pulse 2.8s ease-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%   { transform: scale(0.85); opacity: 0.7; }
+  70%  { transform: scale(1.4);  opacity: 0;   }
+  100% { transform: scale(1.4);  opacity: 0;   }
 }
 
 .step-header__content {
@@ -138,22 +159,42 @@
   gap: 0.5rem;
   font-size: 1.1rem;
   font-weight: 700;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: var(--otel-metrics);
+}
+
+.validation-checklist__progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(76, 175, 80, 0.2);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.validation-checklist__progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--otel-metrics), #81C784);
+  width: 0%;
 }
 
 .validation-checklist__item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0;
+  padding: 0.4rem 0;
 }
 
-.validation-checklist__item input[type="checkbox"] {
-  margin-top: 0.25rem;
-  accent-color: var(--otel-metrics);
-  width: 18px;
-  height: 18px;
+.validation-checklist__check-icon {
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 0;
+  outline: none;
+}
+
+.validation-checklist__check-icon:focus-visible {
+  outline: 2px solid var(--otel-metrics);
+  border-radius: 5px;
 }
 
 /* Terminal output */
@@ -268,6 +309,136 @@
 /* Stack tabs customization */
 .tabs-container [role="tabpanel"] {
   padding-top: 1rem;
+}
+
+/* Tab panel reveal animation when becoming active */
+.tabs-container [role="tabpanel"]:not([hidden]) {
+  animation: tab-reveal 0.28s ease-out;
+}
+
+@keyframes tab-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Stack tabs wrapper */
+.stack-tabs-wrapper {
+  border-radius: 8px;
+  overflow: visible;
+}
+
+/* Tab button hover indicator */
+.tabs__item:hover:not(.tabs__item--active) {
+  background: rgba(66, 133, 244, 0.06);
+  transition: background 0.2s ease;
+}
+
+/* TerminalOutput typewriter reveal */
+.terminal-output__content--typewriter {
+  animation: terminal-reveal 1.4s ease-out both;
+}
+
+@keyframes terminal-reveal {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0% 0); }
+}
+
+.terminal-output__cursor {
+  display: inline-block;
+  color: #27c93f;
+  font-weight: bold;
+  animation: cursor-blink 1s step-end infinite;
+  animation-delay: 1.4s;
+  opacity: 0;
+}
+
+@keyframes cursor-blink {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* BackendCard */
+.backend-card {
+  border: 1px solid;
+  border-radius: 14px;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.backend-card__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 0.75rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+.backend-card__icon {
+  flex-shrink: 0;
+}
+
+.backend-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.backend-card__name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.backend-card__url {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid;
+  border-radius: 4px;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.backend-card__url:hover { opacity: 1; }
+
+.backend-card__body {
+  padding: 0.5rem 1.5rem 1.25rem;
+}
+
+/* Micro-animations — navbar & sidebar links */
+.navbar__link {
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.navbar__link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--ifm-color-primary);
+  border-radius: 1px;
+  transition: width 0.25s ease;
+}
+
+.navbar__link:hover::after,
+.navbar__link--active::after {
+  width: 100%;
+}
+
+/* Pagination hover slide */
+.pagination-nav__link {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pagination-nav__link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* Responsive */

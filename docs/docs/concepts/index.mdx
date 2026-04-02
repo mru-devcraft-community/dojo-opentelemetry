@@ -3,11 +3,19 @@ title: Concepts OpenTelemetry
 sidebar_position: 1
 ---
 
+import FadeInView from '@site/src/components/FadeInView';
+
 # Concepts OpenTelemetry
+
+<FadeInView direction="up" delay={0.05}>
 
 OpenTelemetry (OTel) est un **framework d'observabilité open-source** et vendor-neutral, maintenu par la [Cloud Native Computing Foundation (CNCF)](https://www.cncf.io/). Il fournit un ensemble standardisé d'APIs, de SDKs et d'outils pour collecter des données de télémétrie à partir de vos applications.
 
+</FadeInView>
+
 ## Pourquoi OpenTelemetry ?
+
+<FadeInView direction="left" delay={0.1}>
 
 Avant OpenTelemetry, chaque outil d'observabilité avait son propre SDK et son propre format de données. Cela créait un **vendor lock-in** et rendait difficile le changement de backend.
 
@@ -22,7 +30,11 @@ OpenTelemetry résout ce problème en proposant :
 OpenTelemetry est le **deuxième projet le plus actif** de la CNCF (après Kubernetes). Il résulte de la fusion d'OpenTracing et OpenCensus.
 :::
 
+</FadeInView>
+
 ## Les piliers de l'observabilité
+
+<FadeInView direction="up" delay={0.1}>
 
 L'observabilité applicative repose sur trois signaux complémentaires :
 
@@ -32,8 +44,14 @@ L'observabilité applicative repose sur trois signaux complémentaires :
 | **Métriques** | *Comment se porte le système ?* | Mesurer les performances |
 | **Logs** | *Pourquoi cela s'est-il passé ?* | Diagnostiquer les problèmes |
 
+</FadeInView>
+
 ## Dans cette section
+
+<FadeInView direction="up" delay={0.15}>
 
 - 📡 [**Signaux de télémétrie**](./signals) — Traces, métriques et logs en détail
 - 🏗️ [**Architecture**](./architecture) — Composants du SDK et du Collector
 - 🔀 [**Le Collector**](./collector) — Réception, traitement et export des données
+
+</FadeInView>

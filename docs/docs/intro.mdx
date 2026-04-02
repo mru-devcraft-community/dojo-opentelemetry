@@ -29,15 +29,15 @@ L'observabilité applicative repose sur trois signaux complémentaires :
 
 <div style={{display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center', margin: '2rem 0'}}>
 
-<SignalBadge signal="traces" title="Traces">
+<SignalBadge signal="traces" title="Traces" index={0}>
   Suivez le parcours d'une requête à travers vos services distribués. Les traces révèlent **où** le temps est passé et **comment** les services interagissent.
 </SignalBadge>
 
-<SignalBadge signal="metrics" title="Métriques">
+<SignalBadge signal="metrics" title="Métriques" index={1}>
   Mesurez les performances de votre application avec des compteurs, histogrammes et jauges. Les métriques répondent à la question **« comment se porte mon système ? »**.
 </SignalBadge>
 
-<SignalBadge signal="logs" title="Logs">
+<SignalBadge signal="logs" title="Logs" index={2}>
   Capturez les événements structurés et corrélés avec les traces. Les logs fournissent le **contexte détaillé** pour diagnostiquer les problèmes.
 </SignalBadge>
 
