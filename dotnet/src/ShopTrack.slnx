@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ShopTrack.AppHost\ShopTrack.AppHost.csproj" />
+  <Project Path="ShopTrack.Api\ShopTrack.Api.csproj" />
+  <Project Path="ShopTrack.ServiceDefaults\ShopTrack.ServiceDefaults.csproj" />
+</Solution>
