@@ -1,0 +1,66 @@
+# =========================
+# .NET
+# =========================
+*.suo
+*.user
+*.userosscache
+*.sln.docstats
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.nupkg
+*.snupkg
+project.lock.json
+.vs/
+*.DotSettings.user
+
+# =========================
+# Java
+# =========================
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.idea/
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+.settings/
+.project
+.classpath
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Docker / Infra
+# =========================
+infra/data/
+infra/grafana-data/
+
+# =========================
+# IDE
+# =========================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+.thinking/
+
+# Docusaurus
+docs/node_modules/
+docs/build/
+docs/build2/
+docs/.docusaurus/
+
+lib/

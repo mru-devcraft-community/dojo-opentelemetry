@@ -1,82 +1,106 @@
-import { themes as prismThemes } from 'prism-react-renderer';
-import type { Config } from '@docusaurus/types';
-import type * as Preset from '@docusaurus/preset-classic';
+import { themes as prismThemes } from "prism-react-renderer";
+import type { Config } from "@docusaurus/types";
+import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
-  title: 'OpenTelemetry DoJo',
+  title: "OpenTelemetry DoJo",
   tagline: "Maîtrisez l'observabilité applicative avec OpenTelemetry",
-  favicon: 'img/favicon.svg',
+  favicon: "img/favicon.svg",
 
-  url: 'https://otel-dojo.dev',
-  baseUrl: '/',
+  url: "https://otel-dojo.dev",
+  baseUrl: "/",
 
-  organizationName: 'otel-dojo',
-  projectName: 'otel-dojo',
+  staticDirectories: ["static"],
 
-  onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  organizationName: "otel-dojo",
+  projectName: "otel-dojo",
+
+  onBrokenLinks: "warn",
 
   i18n: {
-    defaultLocale: 'fr',
-    locales: ['fr'],
+    defaultLocale: "fr",
+    locales: ["fr"],
   },
 
   presets: [
     [
-      'classic',
+      "classic",
       {
         docs: {
-          routeBasePath: '/',
-          sidebarPath: './sidebars.ts',
+          routeBasePath: "/",
+          sidebarPath: "./sidebars.ts",
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: "./src/css/custom.css",
         },
       } satisfies Preset.Options,
     ],
   ],
 
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ["@docusaurus/theme-mermaid"],
+
+  plugins: [
+    [
+      "./plugins/docusaurus-plugin-slidev",
+      {
+        path: "./slidev",
+        routeBasePath: "/slidev",
+        pageTitle: "Presentations",
+        pageTagline: "Présentations interactives du DoJo OpenTelemetry",
+        theme: "unicorn",
+        addons: [],
+        buildTimeout: 120,
+        autoInstall: true,
+      },
+    ],
+  ],
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
   },
 
   themeConfig: {
     navbar: {
-      title: 'OTel DoJo',
+      title: "OTel DoJo",
       logo: {
-        alt: 'OTel DoJo Logo',
-        src: 'img/logo.svg',
+        alt: "OTel DoJo Logo",
+        src: "img/logo.svg",
       },
       items: [
-        { type: 'doc', docId: 'intro', label: 'Accueil', position: 'left' },
-        { to: '/getting-started', label: 'Démarrage', position: 'left' },
-        { to: '/concepts', label: 'Concepts', position: 'left' },
-        { to: '/dojo/step-00', label: 'DoJo', position: 'left' },
-        { to: '/infrastructure', label: 'Infra', position: 'left' },
-        { to: '/references', label: 'Références', position: 'left' },
+        { type: "doc", docId: "intro", label: "Accueil", position: "left" },
+        { to: "/getting-started", label: "Démarrage", position: "left" },
+        { to: "/concepts", label: "Concepts", position: "left" },
+        { to: "/dojo/step-00", label: "DoJo", position: "left" },
+        { to: "/infrastructure", label: "Infra", position: "left" },
+        { to: "/references", label: "Références", position: "left" },
+        { to: "/slidev", label: "Presentations", position: "left" },
       ],
     },
     footer: {
-      style: 'dark',
+      style: "dark",
       links: [
         {
-          title: 'Ressources',
+          title: "Ressources",
           items: [
-            { label: 'OpenTelemetry Docs', href: 'https://opentelemetry.io/docs/' },
-            { label: 'Jaeger', href: 'https://www.jaegertracing.io/' },
-            { label: 'Grafana', href: 'https://grafana.com/' },
-            { label: 'Prometheus', href: 'https://prometheus.io/' },
+            {
+              label: "OpenTelemetry Docs",
+              href: "https://opentelemetry.io/docs/",
+            },
+            { label: "Jaeger", href: "https://www.jaegertracing.io/" },
+            { label: "Grafana", href: "https://grafana.com/" },
+            { label: "Prometheus", href: "https://prometheus.io/" },
           ],
         },
         {
-          title: 'Communauté',
+          title: "Communauté",
           items: [
-            { label: 'GitHub', href: 'https://github.com/otel-dojo' },
-            { label: 'Discord', href: 'https://discord.gg/opentelemetry' },
-            { label: 'Twitter', href: 'https://twitter.com/opentelemetry' },
+            { label: "GitHub", href: "https://github.com/otel-dojo" },
+            { label: "Discord", href: "https://discord.gg/opentelemetry" },
+            { label: "Twitter", href: "https://twitter.com/opentelemetry" },
           ],
         },
       ],
@@ -85,12 +109,19 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ['csharp', 'java', 'json', 'yaml', 'bash', 'powershell'],
+      additionalLanguages: [
+        "csharp",
+        "java",
+        "json",
+        "yaml",
+        "bash",
+        "powershell",
+      ],
     },
     mermaid: {
       theme: {
-        light: 'neutral',
-        dark: 'dark',
+        light: "neutral",
+        dark: "dark",
       },
     },
   } satisfies Preset.ThemeConfig,

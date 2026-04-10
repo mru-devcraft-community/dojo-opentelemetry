@@ -1,0 +1,178 @@
+/**
+ * SlidevPresentation styles
+ */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Placeholder (Development Mode) */
+.placeholder {
+  max-width: 800px;
+  margin: 4rem auto;
+  text-align: center;
+}
+
+.placeholderIcon {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 2rem;
+  color: var(--ifm-color-primary);
+  opacity: 0.8;
+}
+
+.placeholderIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.placeholderTitle {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--ifm-heading-color);
+}
+
+.placeholderDescription {
+  font-size: 1.25rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 2rem;
+}
+
+.placeholderMeta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 3rem;
+  font-size: 1rem;
+}
+
+.metaIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.placeholderMessage {
+  background-color: var(--ifm-color-warning-contrast-background);
+  border: 1px solid var(--ifm-color-warning);
+  border-radius: 8px;
+  padding: 2rem;
+  margin-top: 3rem;
+}
+
+.messageIcon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: var(--ifm-color-warning-dark);
+}
+
+.messageIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.messageTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--ifm-heading-color);
+}
+
+.messageText {
+  font-size: 1rem;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1rem;
+}
+
+.commandBlock {
+  background-color: var(--ifm-code-background);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 1rem auto;
+  max-width: 300px;
+}
+
+.commandBlock code {
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: transparent;
+  border: none;
+}
+
+/* Error State */
+.errorState {
+  max-width: 600px;
+  margin: 4rem auto;
+  text-align: center;
+}
+
+.errorIcon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 2rem;
+  color: var(--ifm-color-danger);
+}
+
+.errorTitle {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: var(--ifm-heading-color);
+}
+
+.errorText {
+  font-size: 1.125rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.errorText code {
+  background-color: var(--ifm-code-background);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Production Mode - Full Screen Iframe */
+.presentationContainer {
+  position: fixed;
+  top: var(--ifm-navbar-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #000;
+}
+
+.presentationIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .placeholder {
+    margin: 2rem auto;
+  }
+
+  .placeholderTitle {
+    font-size: 2rem;
+  }
+
+  .placeholderDescription {
+    font-size: 1.125rem;
+  }
+
+  .placeholderMessage {
+    padding: 1.5rem;
+  }
+
+  .messageTitle {
+    font-size: 1.25rem;
+  }
+}
